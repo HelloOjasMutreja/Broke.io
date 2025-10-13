@@ -5,9 +5,14 @@
     box-sizing: border-box;
 }
 
+html {
+    scroll-behavior: smooth;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-attachment: fixed;
     color: #333;
     overflow-x: hidden;
     min-height: 100vh;
@@ -17,6 +22,18 @@ body {
     max-width: 1600px;
     margin: 0 auto;
     padding: 20px;
+    animation: containerFadeIn 0.5s ease-in;
+}
+
+@keyframes containerFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Header Styles */
@@ -309,19 +326,43 @@ header h1 {
 }
 
 @keyframes diceIdle {
-    0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(5deg); }
+    0%, 100% { 
+        transform: rotate(0deg) translateY(0);
+    }
+    25% { 
+        transform: rotate(3deg) translateY(-3px);
+    }
+    50% { 
+        transform: rotate(-3deg) translateY(0);
+    }
+    75% { 
+        transform: rotate(3deg) translateY(-3px);
+    }
 }
 
 .dice.rolling {
-    animation: diceRoll 0.5s ease-in-out;
+    animation: diceRoll 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes diceRoll {
-    0%, 100% { transform: rotate(0deg) scale(1); }
-    25% { transform: rotate(180deg) scale(1.2); }
-    50% { transform: rotate(360deg) scale(1); }
-    75% { transform: rotate(540deg) scale(1.2); }
+    0% { 
+        transform: rotate(0deg) scale(1);
+    }
+    20% { 
+        transform: rotate(180deg) scale(1.3);
+    }
+    40% { 
+        transform: rotate(360deg) scale(1);
+    }
+    60% { 
+        transform: rotate(540deg) scale(1.3);
+    }
+    80% { 
+        transform: rotate(720deg) scale(1.1);
+    }
+    100% { 
+        transform: rotate(720deg) scale(1);
+    }
 }
 
 .action-btn {
@@ -463,8 +504,8 @@ header h1 {
 }
 
 @keyframes tokenBounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-5px); }
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-5px) scale(1.05); }
 }
 
 .player-info {
@@ -556,7 +597,10 @@ header h1 {
     color: #999;
     font-style: italic;
     text-align: center;
-    padding: 20px;
+    padding: 25px;
+    background: linear-gradient(145deg, #f8f9fa, #ffffff);
+    border-radius: 10px;
+    border: 2px dashed #e0e0e0;
 }
 
 /* Theme Selector */
@@ -676,6 +720,14 @@ header h1 {
     font-size: 1.5em;
     cursor: pointer;
     color: #667eea;
+    transition: all 0.3s ease;
+    padding: 5px;
+    border-radius: 8px;
+}
+
+#toggle-chat:hover {
+    background: rgba(102, 126, 234, 0.1);
+    transform: scale(1.1);
 }
 
 #chat-messages {
@@ -863,23 +915,38 @@ header h1 {
 
 /* Auction Modal Specific */
 #auction-timer {
-    font-size: 1.5em;
-    font-weight: bold;
-    color: #ff0000;
+    font-size: 1.6em;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     text-align: center;
-    margin: 15px 0;
+    margin: 18px 0;
     animation: timerPulse 1s ease-in-out infinite;
+    text-shadow: 0 2px 4px rgba(255, 0, 0, 0.2);
 }
 
 @keyframes timerPulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
+    0%, 100% { 
+        transform: scale(1);
+        filter: brightness(1);
+    }
+    50% { 
+        transform: scale(1.15);
+        filter: brightness(1.2);
+    }
 }
 
 #current-bid {
-    font-size: 1.3em;
+    font-size: 1.4em;
     text-align: center;
-    margin: 15px 0;
+    margin: 18px 0;
+    font-weight: 700;
+    background: linear-gradient(145deg, #f8f9fa, #ffffff);
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 #bid-input {
@@ -999,12 +1066,47 @@ header h1 {
 /* Theme Variations */
 body.theme-cyber {
     background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+    background-attachment: fixed;
 }
 
 body.theme-fantasy {
     background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%);
+    background-attachment: fixed;
 }
 
 body.theme-space {
     background: linear-gradient(135deg, #000000 0%, #434343 100%);
+    background-attachment: fixed;
+}
+
+/* Utility Classes */
+.fade-in {
+    animation: fadeIn 0.3s ease;
+}
+
+.slide-in {
+    animation: slideDown 0.3s ease;
+}
+
+.pulse {
+    animation: pulse 0.5s ease;
+}
+
+/* Accessibility Improvements */
+button:focus,
+input:focus,
+select:focus {
+    outline: 3px solid rgba(102, 126, 234, 0.5);
+    outline-offset: 2px;
+}
+
+/* Selection Styling */
+::selection {
+    background: rgba(102, 126, 234, 0.3);
+    color: #333;
+}
+
+::-moz-selection {
+    background: rgba(102, 126, 234, 0.3);
+    color: #333;
 }
