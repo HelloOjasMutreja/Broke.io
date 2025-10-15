@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile - Broke.io{% endblock %}
+
+{% block content %}
+<h2>👤 Your Profile</h2>
+
+<div style="margin: 20px 0;">
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+        <strong>Username:</strong> {{ user.username }}
+    </div>
+    
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+        <strong>Date Joined:</strong> {{ user.date_joined|date:"F d, Y" }}
+    </div>
+    
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+        <strong>Last Login:</strong> {{ user.last_login|date:"F d, Y H:i" }}
+    </div>
+</div>
+
+<div style="margin-top: 30px;">
+    <a href="/" class="btn" style="text-decoration: none; display: inline-block; text-align: center;">
+        🎲 Play Broke.io
+    </a>
+</div>
+
+<div class="links" style="margin-top: 20px;">
+    <p><a href="{% url 'logout' %}">Logout</a></p>
+</div>
+{% endblock %}

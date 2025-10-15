@@ -1,0 +1,424 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Broke.io - Build Your Empire</title>
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Header Section -->
+        <header>
+            <h1>🎲 Broke.io</h1>
+            <div id="game-mode-selector">
+                <button class="mode-btn" data-mode="solo">Solo</button>
+                <button class="mode-btn" data-mode="friends">Friends</button>
+                <button class="mode-btn" data-mode="online">Online</button>
+            </div>
+            <div id="player-stats">
+                {% if user.is_authenticated %}
+                    <span id="player-name">{{ user.username }}</span>
+                    <span id="player-money">$1500</span>
+                    <span id="player-level">Level 1</span>
+                    <a href="{% url 'profile' %}" style="color: white; text-decoration: none; margin-left: 10px;">👤</a>
+                    <a href="{% url 'logout' %}" style="color: white; text-decoration: none; margin-left: 10px;">🚪</a>
+                {% else %}
+                    <span id="player-name">Guest</span>
+                    <span id="player-money">$1500</span>
+                    <span id="player-level">Level 1</span>
+                    <a href="{% url 'login' %}" style="color: white; text-decoration: none; margin-left: 10px;">🔐 Login</a>
+                    <a href="{% url 'signup' %}" style="color: white; text-decoration: none; margin-left: 10px;">📝 Sign Up</a>
+                {% endif %}
+            </div>
+        </header>
+
+        <!-- Main Game Area -->
+        <div id="main-game">
+            <!-- Game Board -->
+            <div id="game-board" class="animated-board">
+                <!-- Corner Spaces -->
+                <div class="space corner" data-position="0" data-type="go">
+                    <div class="space-content">
+                        <div class="space-name">GO</div>
+                        <div class="space-info">Collect $200</div>
+                    </div>
+                </div>
+
+                <!-- Bottom Row -->
+                <div class="space property brown" data-position="1" data-price="60">
+                    <div class="property-color"></div>
+                    <div class="space-name">Mediterranean Avenue</div>
+                    <div class="space-price">$60</div>
+                </div>
+                <div class="space special" data-position="2" data-type="community-chest">
+                    <div class="space-name">Community Chest</div>
+                </div>
+                <div class="space property brown" data-position="3" data-price="60">
+                    <div class="property-color"></div>
+                    <div class="space-name">Baltic Avenue</div>
+                    <div class="space-price">$60</div>
+                </div>
+                <div class="space special" data-position="4" data-type="tax">
+                    <div class="space-name">Income Tax</div>
+                    <div class="space-info">Pay $200</div>
+                </div>
+                <div class="space railroad" data-position="5" data-price="200">
+                    <div class="space-name">Reading Railroad</div>
+                    <div class="space-price">$200</div>
+                </div>
+                <div class="space property light-blue" data-position="6" data-price="100">
+                    <div class="property-color"></div>
+                    <div class="space-name">Oriental Avenue</div>
+                    <div class="space-price">$100</div>
+                </div>
+                <div class="space special" data-position="7" data-type="chance">
+                    <div class="space-name">Chance</div>
+                </div>
+                <div class="space property light-blue" data-position="8" data-price="100">
+                    <div class="property-color"></div>
+                    <div class="space-name">Vermont Avenue</div>
+                    <div class="space-price">$100</div>
+                </div>
+                <div class="space property light-blue" data-position="9" data-price="120">
+                    <div class="property-color"></div>
+                    <div class="space-name">Connecticut Avenue</div>
+                    <div class="space-price">$120</div>
+                </div>
+
+                <!-- Jail Corner -->
+                <div class="space corner" data-position="10" data-type="jail">
+                    <div class="space-content">
+                        <div class="space-name">Jail</div>
+                        <div class="space-info">Just Visiting</div>
+                    </div>
+                </div>
+
+                <!-- Left Column -->
+                <div class="space property pink" data-position="11" data-price="140">
+                    <div class="property-color"></div>
+                    <div class="space-name">St. Charles Place</div>
+                    <div class="space-price">$140</div>
+                </div>
+                <div class="space utility" data-position="12" data-price="150">
+                    <div class="space-name">Electric Company</div>
+                    <div class="space-price">$150</div>
+                </div>
+                <div class="space property pink" data-position="13" data-price="140">
+                    <div class="property-color"></div>
+                    <div class="space-name">States Avenue</div>
+                    <div class="space-price">$140</div>
+                </div>
+                <div class="space property pink" data-position="14" data-price="160">
+                    <div class="property-color"></div>
+                    <div class="space-name">Virginia Avenue</div>
+                    <div class="space-price">$160</div>
+                </div>
+                <div class="space railroad" data-position="15" data-price="200">
+                    <div class="space-name">Pennsylvania Railroad</div>
+                    <div class="space-price">$200</div>
+                </div>
+                <div class="space property orange" data-position="16" data-price="180">
+                    <div class="property-color"></div>
+                    <div class="space-name">St. James Place</div>
+                    <div class="space-price">$180</div>
+                </div>
+                <div class="space special" data-position="17" data-type="community-chest">
+                    <div class="space-name">Community Chest</div>
+                </div>
+                <div class="space property orange" data-position="18" data-price="180">
+                    <div class="property-color"></div>
+                    <div class="space-name">Tennessee Avenue</div>
+                    <div class="space-price">$180</div>
+                </div>
+                <div class="space property orange" data-position="19" data-price="200">
+                    <div class="property-color"></div>
+                    <div class="space-name">New York Avenue</div>
+                    <div class="space-price">$200</div>
+                </div>
+
+                <!-- Free Parking Corner -->
+                <div class="space corner" data-position="20" data-type="free-parking">
+                    <div class="space-content">
+                        <div class="space-name">Free Parking</div>
+                        <div class="space-info">💰</div>
+                    </div>
+                </div>
+
+                <!-- Top Row (Reversed) -->
+                <div class="space property red" data-position="21" data-price="220">
+                    <div class="property-color"></div>
+                    <div class="space-name">Kentucky Avenue</div>
+                    <div class="space-price">$220</div>
+                </div>
+                <div class="space special" data-position="22" data-type="chance">
+                    <div class="space-name">Chance</div>
+                </div>
+                <div class="space property red" data-position="23" data-price="220">
+                    <div class="property-color"></div>
+                    <div class="space-name">Indiana Avenue</div>
+                    <div class="space-price">$220</div>
+                </div>
+                <div class="space property red" data-position="24" data-price="240">
+                    <div class="property-color"></div>
+                    <div class="space-name">Illinois Avenue</div>
+                    <div class="space-price">$240</div>
+                </div>
+                <div class="space railroad" data-position="25" data-price="200">
+                    <div class="space-name">B. & O. Railroad</div>
+                    <div class="space-price">$200</div>
+                </div>
+                <div class="space property yellow" data-position="26" data-price="260">
+                    <div class="property-color"></div>
+                    <div class="space-name">Atlantic Avenue</div>
+                    <div class="space-price">$260</div>
+                </div>
+                <div class="space property yellow" data-position="27" data-price="260">
+                    <div class="property-color"></div>
+                    <div class="space-name">Ventnor Avenue</div>
+                    <div class="space-price">$260</div>
+                </div>
+                <div class="space utility" data-position="28" data-price="150">
+                    <div class="space-name">Water Works</div>
+                    <div class="space-price">$150</div>
+                </div>
+                <div class="space property yellow" data-position="29" data-price="280">
+                    <div class="property-color"></div>
+                    <div class="space-name">Marvin Gardens</div>
+                    <div class="space-price">$280</div>
+                </div>
+
+                <!-- Go To Jail Corner -->
+                <div class="space corner" data-position="30" data-type="go-to-jail">
+                    <div class="space-content">
+                        <div class="space-name">Go To Jail</div>
+                        <div class="space-info">👮</div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="space property green" data-position="31" data-price="300">
+                    <div class="property-color"></div>
+                    <div class="space-name">Pacific Avenue</div>
+                    <div class="space-price">$300</div>
+                </div>
+                <div class="space property green" data-position="32" data-price="300">
+                    <div class="property-color"></div>
+                    <div class="space-name">North Carolina Avenue</div>
+                    <div class="space-price">$300</div>
+                </div>
+                <div class="space special" data-position="33" data-type="community-chest">
+                    <div class="space-name">Community Chest</div>
+                </div>
+                <div class="space property green" data-position="34" data-price="320">
+                    <div class="property-color"></div>
+                    <div class="space-name">Pennsylvania Avenue</div>
+                    <div class="space-price">$320</div>
+                </div>
+                <div class="space railroad" data-position="35" data-price="200">
+                    <div class="space-name">Short Line</div>
+                    <div class="space-price">$200</div>
+                </div>
+                <div class="space special" data-position="36" data-type="chance">
+                    <div class="space-name">Chance</div>
+                </div>
+                <div class="space property dark-blue" data-position="37" data-price="350">
+                    <div class="property-color"></div>
+                    <div class="space-name">Park Place</div>
+                    <div class="space-price">$350</div>
+                </div>
+                <div class="space special" data-position="38" data-type="tax">
+                    <div class="space-name">Luxury Tax</div>
+                    <div class="space-info">Pay $100</div>
+                </div>
+                <div class="space property dark-blue" data-position="39" data-price="400">
+                    <div class="property-color"></div>
+                    <div class="space-name">Boardwalk</div>
+                    <div class="space-price">$400</div>
+                </div>
+
+                <!-- Center Board Area -->
+                <div id="center-board">
+                    <div id="board-title">BROKE.IO</div>
+                    <div id="dice-area">
+                        <div class="dice" id="dice1">
+                            <div class="dice-face">⚅</div>
+                        </div>
+                        <div class="dice" id="dice2">
+                            <div class="dice-face">⚅</div>
+                        </div>
+                    </div>
+                    <button id="roll-dice-btn" class="action-btn">Roll Dice</button>
+                    <div id="current-turn">Your Turn</div>
+                </div>
+            </div>
+
+            <!-- Side Panel -->
+            <div id="side-panel">
+                <!-- Player Tokens -->
+                <div id="player-tokens" class="panel-section">
+                    <h3>Players</h3>
+                    <div class="player-list">
+                        <div class="player-item active">
+                            <span class="player-token" data-token="🚗">🚗</span>
+                            <span class="player-info">
+                                <span class="player-name">You</span>
+                                <span class="player-cash">$1500</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Power-ups -->
+                <div id="power-ups" class="panel-section">
+                    <h3>Power-ups</h3>
+                    <div class="power-up-list">
+                        <button class="power-up" data-powerup="double-dice" title="Roll with advantage">
+                            ⚡ Double Dice
+                        </button>
+                        <button class="power-up" data-powerup="rent-shield" title="Protect from rent">
+                            🛡️ Rent Shield
+                        </button>
+                        <button class="power-up" data-powerup="property-swap" title="Force property trade">
+                            🔄 Property Swap
+                        </button>
+                        <button class="power-up" data-powerup="banker-boost" title="Get bonus money">
+                            💰 Banker's Boost
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Properties Owned -->
+                <div id="properties-owned" class="panel-section">
+                    <h3>Your Properties</h3>
+                    <div id="property-list">
+                        <p class="empty-message">No properties yet</p>
+                    </div>
+                </div>
+
+                <!-- Theme Selector -->
+                <div id="theme-selector" class="panel-section">
+                    <h3>Board Theme</h3>
+                    <select id="theme-select">
+                        <option value="classic">Classic</option>
+                        <option value="cyber">Cyber City</option>
+                        <option value="fantasy">Fantasy Realm</option>
+                        <option value="space">Space Station</option>
+                    </select>
+                </div>
+
+                <!-- Leaderboard -->
+                <div id="leaderboard" class="panel-section">
+                    <h3>🏆 Leaderboard</h3>
+                    <div class="leaderboard-list">
+                        <div class="leaderboard-item">
+                            <span class="rank">1.</span>
+                            <span class="leader-name">ProTrader</span>
+                            <span class="leader-score">$15,000</span>
+                        </div>
+                        <div class="leaderboard-item">
+                            <span class="rank">2.</span>
+                            <span class="leader-name">RealEstateTycoon</span>
+                            <span class="leader-score">$12,500</span>
+                        </div>
+                        <div class="leaderboard-item">
+                            <span class="rank">3.</span>
+                            <span class="leader-name">MonopolyMaster</span>
+                            <span class="leader-score">$10,200</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Section -->
+        <div id="chat-section">
+            <div id="chat-header">
+                <h3>💬 Live Chat</h3>
+                <button id="toggle-chat">−</button>
+            </div>
+            <div id="chat-messages">
+                <div class="chat-message system">Welcome to Broke.io! Good luck!</div>
+            </div>
+            <div id="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Type a message...">
+                <button id="send-chat">Send</button>
+            </div>
+        </div>
+
+        <!-- Modals -->
+        <!-- Property Card Modal -->
+        <div id="property-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2 id="property-title">Property Name</h2>
+                <div id="property-details">
+                    <p><strong>Price:</strong> <span id="modal-price">$0</span></p>
+                    <p><strong>Rent:</strong> <span id="modal-rent">$0</span></p>
+                    <p><strong>Owner:</strong> <span id="modal-owner">None</span></p>
+                </div>
+                <div class="modal-actions">
+                    <button id="buy-property-btn" class="action-btn">Buy Property</button>
+                    <button id="auction-property-btn" class="action-btn">Start Auction</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auction Modal -->
+        <div id="auction-modal" class="modal">
+            <div class="modal-content">
+                <h2>🔨 Property Auction</h2>
+                <div id="auction-timer">Time: <span id="timer-display">30</span>s</div>
+                <div id="auction-property-name">Property Name</div>
+                <div id="current-bid">Current Bid: $<span id="bid-amount">0</span></div>
+                <div id="highest-bidder">Highest Bidder: <span id="bidder-name">None</span></div>
+                <div class="modal-actions">
+                    <input type="number" id="bid-input" placeholder="Enter bid amount" step="10">
+                    <button id="place-bid-btn" class="action-btn">Place Bid</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mini-game Modal -->
+        <div id="minigame-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>🎮 Mini-Game Challenge</h2>
+                <div id="minigame-content">
+                    <p>Click the targets as fast as you can!</p>
+                    <div id="minigame-area">
+                        <!-- Mini-game content will be dynamically loaded -->
+                    </div>
+                    <div id="minigame-score">Score: <span id="minigame-score-value">0</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Token Customization Modal -->
+        <div id="token-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Choose Your Token</h2>
+                <div id="token-options">
+                    <button class="token-option" data-token="🚗">🚗 Car</button>
+                    <button class="token-option" data-token="🚢">🚢 Ship</button>
+                    <button class="token-option" data-token="🎩">🎩 Hat</button>
+                    <button class="token-option" data-token="🐕">🐕 Dog</button>
+                    <button class="token-option" data-token="🐱">🐱 Cat</button>
+                    <button class="token-option" data-token="👞">👞 Boot</button>
+                    <button class="token-option" data-token="🎸">🎸 Guitar</button>
+                    <button class="token-option" data-token="🚀">🚀 Rocket</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'game.js' %}"></script>
+    <script src="{% static 'board.js' %}"></script>
+    <script src="{% static 'auction.js' %}"></script>
+    <script src="{% static 'chat.js' %}"></script>
+    <script src="{% static 'powerups.js' %}"></script>
+    <script src="{% static 'minigames.js' %}"></script>
+</body>
+</html>

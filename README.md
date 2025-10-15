@@ -33,16 +33,53 @@ A modern, web-based reimagination of Monopoly! Build your empire, trade properti
 
 ### Prerequisites
 
-No installation required! Just a modern web browser (Chrome, Firefox, Safari, or Edge).
+- Python 3.8 or higher (for Django backend)
+- Modern web browser (Chrome, Firefox, Safari, or Edge)
+- pip (Python package manager)
+
+### Installation & Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/HelloOjasMutreja/Broke.io.git
+   cd Broke.io
+   ```
+
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Run database migrations**
+   ```bash
+   python manage.py migrate
+   ```
+
+4. **Start the Django development server**
+   ```bash
+   python manage.py runserver
+   ```
+
+5. **Open your browser**
+   - Navigate to `http://127.0.0.1:8000/`
+   - You can play as a guest or create an account
+
+### User Authentication
+
+The game now includes a Django backend with user authentication:
+
+- **Sign Up**: Create a new account at `/users/signup/`
+- **Login**: Login to your account at `/users/login/`
+- **Profile**: View your profile at `/users/profile/`
+- **Logout**: Logout from the header or at `/users/logout/`
+- **Guest Play**: You can also play without creating an account
 
 ### How to Play
 
-1. **Open the Game**
-   ```bash
-   # Simply open index.html in your web browser
-   open index.html
-   ```
-   Or drag and drop `index.html` into your browser.
+1. **Create an Account (Optional)**
+   - Click **Sign Up** in the header
+   - Choose a username and password
+   - Login to save your progress
 
 2. **Choose Your Game Mode**
    - Click **Solo** to play against AI bots
@@ -111,17 +148,38 @@ Change the board theme from the side panel:
 
 ```
 Broke.io/
-├── index.html          # Main game page
+├── backend/              # Django project configuration
+│   ├── __init__.py
+│   ├── settings.py      # Django settings
+│   ├── urls.py          # Main URL routing
+│   ├── asgi.py
+│   └── wsgi.py
+├── users/               # User authentication app
+│   ├── views.py         # Authentication views
+│   ├── urls.py          # User URL routing
+│   ├── models.py        # User models (using Django's built-in auth)
+│   └── migrations/      # Database migrations
+├── templates/           # Django templates
+│   ├── base.html        # Base template for auth pages
+│   ├── index.html       # Main game page (Django template)
+│   └── users/           # User authentication templates
+│       ├── login.html
+│       ├── signup.html
+│       └── profile.html
 ├── css/
-│   └── style.css      # Game styles and animations
+│   └── style.css        # Game styles and animations
 ├── js/
-│   ├── game.js        # Core game logic
-│   ├── board.js       # Board animations
-│   ├── auction.js     # Auction system
-│   ├── chat.js        # Chat functionality
-│   ├── powerups.js    # Power-up system
-│   └── minigames.js   # Mini-games
-└── README.md          # This file
+│   ├── game.js          # Core game logic
+│   ├── board.js         # Board animations
+│   ├── auction.js       # Auction system
+│   ├── chat.js          # Chat functionality
+│   ├── powerups.js      # Power-up system
+│   └── minigames.js     # Mini-games
+├── manage.py            # Django management script
+├── requirements.txt     # Python dependencies
+├── db.sqlite3           # SQLite database (created after migrations)
+├── index.html           # Original standalone game (still works!)
+└── README.md            # This file
 ```
 
 ## 🔧 Development
