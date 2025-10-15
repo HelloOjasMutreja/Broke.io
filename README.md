@@ -159,6 +159,12 @@ Broke.io/
 │   ├── urls.py          # User URL routing
 │   ├── models.py        # User models (using Django's built-in auth)
 │   └── migrations/      # Database migrations
+├── game/                # Game backend models
+│   ├── models.py        # Core game models (Board, Game, Player, etc.)
+│   ├── admin.py         # Django admin configuration
+│   ├── tests.py         # Model tests
+│   ├── migrations/      # Database migrations
+│   └── README.md        # Game models documentation
 ├── templates/           # Django templates
 │   ├── base.html        # Base template for auth pages
 │   ├── index.html       # Main game page (Django template)
@@ -178,8 +184,40 @@ Broke.io/
 ├── manage.py            # Django management script
 ├── requirements.txt     # Python dependencies
 ├── db.sqlite3           # SQLite database (created after migrations)
+├── GAME_SETUP.md        # Backend setup and usage guide
 ├── index.html           # Original standalone game (still works!)
 └── README.md            # This file
+```
+
+## 🎲 Game Backend Models
+
+The game includes a comprehensive Django backend with models for:
+
+### Core Models
+- **Board**: Game world grid layout with configurable dimensions and themes
+- **Game**: Session management with status, victory conditions, and player limits
+- **Player**: Player identity, stats (money, position, score, level, experience)
+- **Tile**: Grid spaces with terrain types, ownership, pricing, and improvements
+
+### Advanced Features
+- **City**: Player-built structures with levels, defense, production capacity
+- **Resource**: Multi-resource economy (gold, food, energy, wood, stone, etc.)
+- **Turn**: Turn-based gameplay with phases and action tracking
+- **Action**: Comprehensive action logging (buy, sell, trade, build, attack, etc.)
+- **Trade**: Player-to-player trading system with offer management
+- **PowerUp**: Special abilities and temporary bonuses
+
+### Backend Features
+- ✅ **Comprehensive validation** with Django validators
+- ✅ **Optimized queries** with strategic database indexes
+- ✅ **Full admin interface** for game management
+- ✅ **Extensive test suite** (20+ tests)
+- ✅ **Flexible design** supporting multiple game modes
+- ✅ **JSON fields** for extensible game-specific data
+
+For detailed documentation, see:
+- **Model details**: [game/README.md](game/README.md)
+- **Setup guide**: [GAME_SETUP.md](GAME_SETUP.md)
 ```
 
 ## 🔧 Development
