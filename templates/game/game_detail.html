@@ -118,6 +118,15 @@
             color: #666;
         }
         
+        .ready-status {
+            margin-top: 5px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+            background: #f8f9fa;
+        }
+        
         .board-container {
             background: white;
             border-radius: 10px;
@@ -315,6 +324,18 @@
             <!-- Left Panel - Players -->
             <div class="side-panel">
                 <h3>👥 Players</h3>
+                
+                <!-- Display Django messages if any -->
+                {% if messages %}
+                    <div style="margin-bottom: 15px;">
+                        {% for message in messages %}
+                            <div class="message-box show {{ message.tags }}" style="margin-bottom: 10px;">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
                 <div id="players-list">
                     {% for player in players %}
                         <div class="player-item {% if current_turn and current_turn.player.id == player.id %}current-turn{% endif %} {% if current_player and current_player.id == player.id %}current-user{% endif %}" 
@@ -328,6 +349,15 @@
                                 <div>📍 Position: <span class="player-position">{{ player.position }}</span></div>
                                 <div>⭐ Level {{ player.level }}</div>
                                 <div>🏆 Score: {{ player.score }}</div>
+                                {% if game.status == 'waiting' %}
+                                    <div class="ready-status">
+                                        {% if player.is_ready %}
+                                            ✅ Ready
+                                        {% else %}
+                                            ⏳ Not Ready
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
                     {% endfor %}
@@ -341,10 +371,22 @@
                         <h3>⏳ Waiting for players...</h3>
                         <p>Players: {{ game.get_active_players_count }}/{{ game.max_players }}</p>
                         {% if current_player %}
-                            {% if game.can_start %}
-                                <button class="control-btn success" onclick="startGame()">Start Game</button>
+                            <button class="control-btn {% if current_player.is_ready %}success{% else %}primary{% endif %}" 
+                                    onclick="toggleReady()" id="ready-btn">
+                                {% if current_player.is_ready %}✅ Ready{% else %}⏳ Not Ready - Click to Ready Up{% endif %}
+                            </button>
+                            {% if game.owner == request.user %}
+                                <button class="control-btn success" 
+                                        onclick="startGame()" 
+                                        id="start-game-btn"
+                                        {% if not game.all_players_ready %}disabled{% endif %}>
+                                    Start Game
+                                </button>
+                                {% if not game.all_players_ready %}
+                                    <p style="color: #856404; margin-top: 10px;">All players must be ready before starting</p>
+                                {% endif %}
                             {% else %}
-                                <p>Need at least 2 players to start</p>
+                                <p>Waiting for game owner to start...</p>
                             {% endif %}
                         {% else %}
                             <p>You are not in this game</p>
@@ -450,6 +492,46 @@
                 <div class="time">Just now</div>
             `;
             actionsList.insertBefore(li, actionsList.firstChild);
+        }
+        
+        async function toggleReady() {
+            const btn = document.getElementById('ready-btn');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`/game/${GAME_ID}/toggle-ready/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    btn.textContent = data.is_ready ? '✅ Ready' : '⏳ Not Ready - Click to Ready Up';
+                    btn.className = data.is_ready ? 'control-btn success' : 'control-btn primary';
+                    showMessage(data.message, 'success');
+                    
+                    // Enable/disable start button if user is owner
+                    const startBtn = document.getElementById('start-game-btn');
+                    if (startBtn) {
+                        startBtn.disabled = !data.all_ready;
+                    }
+                    
+                    // Refresh to update all player states
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    showMessage(data.error, 'error');
+                    btn.textContent = originalText;
+                }
+            } catch (error) {
+                showMessage('Error toggling ready state', 'error');
+                btn.textContent = originalText;
+            } finally {
+                btn.disabled = false;
+            }
         }
         
         async function startGame() {

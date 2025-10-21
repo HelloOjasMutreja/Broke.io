@@ -24,4 +24,7 @@ urlpatterns = [
     
     # Start game
     path('<int:game_id>/start/', views.start_game, name='start_game'),
+    
+    # Toggle ready state
+    path('<int:game_id>/toggle-ready/', views.toggle_ready, name='toggle_ready'),
 ]

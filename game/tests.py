@@ -56,8 +56,16 @@ class GameModelTest(TestCase):
         # Add two players
         user1 = User.objects.create_user(username="player1")
         user2 = User.objects.create_user(username="player2")
-        Player.objects.create(game=self.game, user=user1, name="Player 1", turn_order=0)
-        Player.objects.create(game=self.game, user=user2, name="Player 2", turn_order=1)
+        Player.objects.create(game=self.game, user=user1, name="Player 1", turn_order=0, is_ready=False)
+        Player.objects.create(game=self.game, user=user2, name="Player 2", turn_order=1, is_ready=False)
+        
+        # Game cannot start yet - players not ready
+        self.assertFalse(self.game.can_start())
+        
+        # Mark both players as ready
+        for player in self.game.players.all():
+            player.is_ready = True
+            player.save()
         
         # Now game can start
         self.assertTrue(self.game.can_start())
@@ -648,15 +656,16 @@ class ViewTestCase(TestCase):
         """Test starting a game"""
         self.client.login(username='user1', password='pass123')
         
-        # Create game with 2 players
+        # Create game with 2 players, user1 as owner
         game = Game.objects.create(
             board=self.board,
+            owner=self.user1,
             name='Test Game',
             mode='friends',
             status='waiting'
         )
-        Player.objects.create(game=game, user=self.user1, name='User1', turn_order=0)
-        Player.objects.create(game=game, user=self.user2, name='User2', turn_order=1)
+        player1 = Player.objects.create(game=game, user=self.user1, name='User1', turn_order=0, is_ready=True)
+        player2 = Player.objects.create(game=game, user=self.user2, name='User2', turn_order=1, is_ready=True)
         
         response = self.client.post(f'/game/{game.id}/start/')
         self.assertEqual(response.status_code, 200)

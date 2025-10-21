@@ -34,6 +34,7 @@ def create_game(request):
     
     game = Game.objects.create(
         board=board,
+        owner=request.user,
         name=game_name,
         mode=game_mode,
         max_players=max_players,
@@ -47,7 +48,8 @@ def create_game(request):
         name=request.user.username,
         money=game.starting_money,
         turn_order=0,
-        is_active=True
+        is_active=True,
+        is_ready=False
     )
     
     return redirect('game:game_detail', game_id=game.id)
@@ -87,7 +89,8 @@ def join_game(request, game_id):
             name=request.user.username,
             money=game.starting_money,
             turn_order=next_turn_order,
-            is_active=True
+            is_active=True,
+            is_ready=False
         )
     
     return redirect('game:game_detail', game_id=game.id)
@@ -109,12 +112,22 @@ def game_detail(request, game_id):
     # Get tiles for the board
     tiles = game.board.tiles.all().order_by('position')
     
+    # Check if board has tiles
+    if tiles.count() == 0:
+        # Show message if board has no tiles
+        from django.contrib import messages
+        messages.warning(request, 
+            f'This board ({game.board.name}) has no tiles yet. '
+            'Please populate the board with tiles using the admin panel or management command.'
+        )
+    
     context = {
         'game': game,
         'players': players,
         'current_player': current_player,
         'current_turn': current_turn,
         'tiles': tiles,
+        'tile_count': tiles.count(),
     }
     return render(request, 'game/game_detail.html', context)
 
@@ -125,10 +138,16 @@ def start_game(request, game_id):
     """Start a game."""
     game = get_object_or_404(Game, id=game_id)
     
-    # Check if user is a player
-    player = game.players.filter(user=request.user).first()
-    if not player:
-        return JsonResponse({'error': 'You are not in this game'}, status=403)
+    # Check if user is the game owner
+    if game.owner != request.user:
+        return JsonResponse({'error': 'Only the game owner can start the game'}, status=403)
+    
+    # Check if all players are ready
+    if not game.all_players_ready():
+        not_ready = [p.name for p in game.players.filter(is_active=True, is_ready=False)]
+        return JsonResponse({
+            'error': f'Not all players are ready. Waiting for: {", ".join(not_ready)}'
+        }, status=400)
     
     # Check if game can start
     if not game.can_start():
@@ -149,6 +168,31 @@ def start_game(request, game_id):
     )
     
     return JsonResponse({'success': True, 'message': 'Game started!'})
+
+
+@login_required
+@require_http_methods(["POST"])
+def toggle_ready(request, game_id):
+    """Toggle player's ready state."""
+    game = get_object_or_404(Game, id=game_id, status='waiting')
+    
+    # Get player
+    player = game.players.filter(user=request.user, is_active=True).first()
+    if not player:
+        return JsonResponse({'error': 'You are not in this game'}, status=403)
+    
+    # Toggle ready state
+    is_ready = player.toggle_ready()
+    
+    # Check if all players are ready
+    all_ready = game.all_players_ready()
+    
+    return JsonResponse({
+        'success': True,
+        'is_ready': is_ready,
+        'all_ready': all_ready,
+        'message': f'You are {"ready" if is_ready else "not ready"}'
+    })
 
 
 @login_required

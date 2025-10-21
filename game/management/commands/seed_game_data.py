@@ -412,6 +412,7 @@ class Command(BaseCommand):
         # Game 1: Waiting for players
         game = Game.objects.create(
             board=boards[0],
+            owner=users[0],
             name="Waiting Room Game",
             mode="friends",
             status="waiting",
@@ -424,6 +425,7 @@ class Command(BaseCommand):
             name=users[0].username,
             money=1500,
             turn_order=0,
+            is_ready=False,
         )
         games.append(game)
 
@@ -434,6 +436,7 @@ class Command(BaseCommand):
         # Game 3: Full game ready to start
         game = Game.objects.create(
             board=boards[1],
+            owner=users[0],
             name="Full House - Ready to Start",
             mode="friends",
             status="waiting",
@@ -448,12 +451,14 @@ class Command(BaseCommand):
                 money=1500,
                 turn_order=i,
                 token=['🚗', '🚢', '🎩', '🐕'][i],
+                is_ready=(i > 0),  # All players except owner are ready
             )
         games.append(game)
 
         # Game 4: Solo game with AI
         game = Game.objects.create(
             board=boards[0],
+            owner=users[0],
             name="Solo vs AI",
             mode="solo",
             status="active",
@@ -467,6 +472,7 @@ class Command(BaseCommand):
             money=1200,
             position=15,
             turn_order=0,
+            is_ready=True,
         )
         ai_player = Player.objects.create(
             game=game,
@@ -476,6 +482,7 @@ class Command(BaseCommand):
             position=8,
             turn_order=1,
             is_human=False,
+            is_ready=True,
         )
         # Add some owned properties for the solo game
         tiles = game.board.tiles.filter(terrain_type='property')[:5]
@@ -520,6 +527,7 @@ class Command(BaseCommand):
         """Create an active game with turns, actions, and owned properties."""
         game = Game.objects.create(
             board=board,
+            owner=users[0],
             name="Active Game - Mid Battle",
             mode="friends",
             status="active",
@@ -547,6 +555,7 @@ class Command(BaseCommand):
                 experience=config['experience'],
                 score=config['score'],
                 token=config['token'],
+                is_ready=True,
             )
             players.append(player)
 

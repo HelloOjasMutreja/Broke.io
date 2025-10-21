@@ -16,17 +16,17 @@ class BoardAdmin(admin.ModelAdmin):
 
 @admin.register(Game)
 class GameAdmin(admin.ModelAdmin):
-    list_display = ('name', 'mode', 'status', 'board', 'max_players', 'winner', 'created_at')
+    list_display = ('name', 'uuid', 'owner', 'mode', 'status', 'board', 'max_players', 'winner', 'created_at')
     list_filter = ('mode', 'status', 'victory_condition', 'created_at')
-    search_fields = ('name',)
-    readonly_fields = ('created_at', 'updated_at')
-    raw_id_fields = ('board', 'winner')
+    search_fields = ('name', 'uuid', 'owner__username')
+    readonly_fields = ('uuid', 'created_at', 'updated_at')
+    raw_id_fields = ('board', 'owner', 'winner')
 
 
 @admin.register(Player)
 class PlayerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'game', 'money', 'score', 'level', 'is_active', 'turn_order')
-    list_filter = ('is_human', 'is_active', 'is_in_jail', 'game')
+    list_display = ('name', 'game', 'money', 'score', 'level', 'is_active', 'is_ready', 'turn_order')
+    list_filter = ('is_human', 'is_active', 'is_ready', 'is_in_jail', 'game')
     search_fields = ('name', 'user__username')
     readonly_fields = ('created_at', 'updated_at')
     raw_id_fields = ('user', 'game')

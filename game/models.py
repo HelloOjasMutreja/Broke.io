@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
+import uuid
 
 
 class Board(models.Model):
@@ -88,11 +89,28 @@ class Game(models.Model):
         ('online', 'Online'),
     ]
 
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        unique=True,
+        verbose_name="Game UUID",
+        help_text="Unique identifier for this game session",
+        db_index=True
+    )
     board = models.ForeignKey(
         Board,
         on_delete=models.CASCADE,
         related_name='games',
         verbose_name="Board"
+    )
+    owner = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='owned_games',
+        verbose_name="Game Owner",
+        help_text="User who created this game and can start it"
     )
     name = models.CharField(
         max_length=200,
@@ -187,7 +205,19 @@ class Game(models.Model):
 
     def can_start(self):
         """Checks if the game can be started."""
-        return self.status == 'waiting' and self.get_active_players_count() >= 2
+        if self.status != 'waiting':
+            return False
+        if self.get_active_players_count() < 2:
+            return False
+        # Check if all players are ready
+        return all(player.is_ready for player in self.players.filter(is_active=True))
+    
+    def all_players_ready(self):
+        """Checks if all players are marked as ready."""
+        active_players = self.players.filter(is_active=True)
+        if active_players.count() < 2:
+            return False
+        return all(player.is_ready for player in active_players)
 
 
 class Player(models.Model):
@@ -254,6 +284,11 @@ class Player(models.Model):
         verbose_name="Is Active",
         help_text="Whether the player is still in the game"
     )
+    is_ready = models.BooleanField(
+        default=False,
+        verbose_name="Is Ready",
+        help_text="Whether the player is ready to start the game"
+    )
     is_in_jail = models.BooleanField(
         default=False,
         verbose_name="In Jail"
@@ -308,6 +343,12 @@ class Player(models.Model):
         if new_level > self.level:
             self.level = new_level
         self.save(update_fields=['experience', 'level', 'updated_at'])
+    
+    def toggle_ready(self):
+        """Toggles the player's ready state."""
+        self.is_ready = not self.is_ready
+        self.save(update_fields=['is_ready', 'updated_at'])
+        return self.is_ready
 
 
 class Tile(models.Model):
