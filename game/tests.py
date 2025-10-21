@@ -2,7 +2,8 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from .models import (
     Board, Game, Player, City, Tile, Resource,
-    Action, Turn, Trade, PowerUp
+    Action, Turn, Trade, PowerUp,
+    ChatMessage, Auction, Bid, Card, Minigame, Transaction
 )
 
 
@@ -250,6 +251,68 @@ class PowerUpModelTest(TestCase):
         self.assertEqual(self.powerup.powerup_type, "double_rent")
         self.assertFalse(self.powerup.is_active)
         self.assertFalse(self.powerup.is_used)
+
+
+class ChatAuctionExtrasTest(TestCase):
+    def setUp(self):
+        self.board = Board.objects.create(name="Board", width=11, height=11)
+        self.game = Game.objects.create(board=self.board, name="Game")
+        self.p1 = Player.objects.create(game=self.game, name="P1", turn_order=0)
+        self.p2 = Player.objects.create(game=self.game, name="P2", money=1000, turn_order=1)
+        self.tile = Tile.objects.create(
+            board=self.board, position=1, x_coordinate=0, y_coordinate=0,
+            name="Tile1", terrain_type="property", price=100, rent=10
+        )
+
+    def test_chat_message_creation(self):
+        msg = ChatMessage.objects.create(game=self.game, player=self.p1, message_type='player', content='Hello')
+        self.assertEqual(msg.content, 'Hello')
+        self.assertEqual(msg.player, self.p1)
+
+    def test_auction_and_bid_flow(self):
+        auction = Auction.objects.create(game=self.game, tile=self.tile, started_by=self.p1, starting_price=50)
+        # First bid valid
+        bid1 = auction.place_bid(bidder=self.p2, amount=60)
+        self.assertIsInstance(bid1, Bid)
+        self.assertEqual(auction.current_price, 60)
+        self.assertEqual(auction.highest_bidder, self.p2)
+        # End auction => transfer ownership and deduct money
+        auction.end()
+        self.tile.refresh_from_db()
+        self.p2.refresh_from_db()
+        self.assertEqual(self.tile.owner, self.p2)
+        self.assertEqual(self.p2.money, 940)  # 1000 - 60
+
+    def test_card_model(self):
+        card = Card.objects.create(deck='chance', title='Bank pays you dividend of $50', effect={'money': 50})
+        self.assertTrue(card.is_active)
+        self.assertEqual(card.deck, 'chance')
+
+    def test_minigame_complete(self):
+        mg = Minigame.objects.create(game=self.game, player=self.p1, minigame_type='quick_math', score=10)
+        mg.complete(reward=200)
+        mg.refresh_from_db()
+        self.p1.refresh_from_db()
+        self.assertTrue(mg.is_completed)
+        self.assertEqual(mg.reward, 200)
+        self.assertEqual(self.p1.money, 1700)  # default 1500 + 200
+
+    def test_transaction_record(self):
+        act = Action.objects.create(
+            turn=Turn.objects.create(game=self.game, player=self.p1, turn_number=1, round_number=1),
+            player=self.p1, action_type='pay', amount=100
+        )
+        txn = Transaction.objects.create(
+            game=self.game,
+            from_player=self.p1,
+            to_player=self.p2,
+            kind='money',
+            amount=100,
+            reason='Rent',
+            related_action=act
+        )
+        self.assertEqual(txn.amount, 100)
+        self.assertEqual(txn.reason, 'Rent')
 
 
 class ViewTestCase(TestCase):
