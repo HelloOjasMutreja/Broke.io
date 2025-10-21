@@ -79,6 +79,7 @@ After running `seed_game_data`, you'll have:
 ✅ **120 tiles** (40 per board with prices, rent, special spaces)
 ✅ **4 games** (in different states: waiting, active, ready to start)
 ✅ **10 players** (4 human, 1 AI with realistic stats)
+✅ **12 cities** (built on owned properties with varying levels, populations, and defenses)
 ✅ **27 cards** (Chance and Community Chest)
 ✅ **Game history** (turns, actions, chat messages)
 ✅ **Properties owned** (some games have properties already distributed)

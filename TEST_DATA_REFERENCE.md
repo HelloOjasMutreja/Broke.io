@@ -8,6 +8,7 @@ The seed command creates a complete test environment for the Broke.io game, incl
 - 3 themed boards with 40 tiles each
 - 4 games in different states
 - 10 players (human and AI)
+- 12 cities built on owned properties
 - 27 cards (Chance and Community Chest)
 - Sample game history (turns, actions, transactions)
 - PowerUps, resources, and chat messages
@@ -65,6 +66,9 @@ All test users have the same password: `testpass123`
   - Players have different money amounts ($1200-$1800)
   - 15 properties distributed among players
   - Some properties have improvements (1-2 levels)
+  - 10 cities built on owned properties (New York, London, Tokyo, Paris, Berlin, Moscow, Sydney, Toronto, Mumbai, Dubai)
+  - Cities have varying levels (1-3), populations, defense, and production capacity
+  - Some cities are designated as capital cities
   - 7 completed turns with actions
   - 1 active turn waiting for dice roll
   - 2 PowerUps (Double Rent, Rent Shield)
@@ -91,6 +95,8 @@ All test users have the same password: `testpass123`
 - **Use Case**: Test AI gameplay and solo mode
 - **Special Features**:
   - 5 properties owned (3 by player1, 2 by AI Bot)
+  - 2 cities: "Capital City" (player1's capital) and "AI Fortress" (AI Bot's capital)
+  - Each capital city has defense, population, and production capacity
   - Players at different positions (15 and 8)
   - Different money amounts ($1200 and $1400)
 
@@ -181,6 +187,7 @@ After seeding, the database contains:
 - **Tiles**: 120 (40 per board)
 - **Games**: 4
 - **Players**: 10
+- **Cities**: 12 (10 in active game, 2 in solo game)
 - **Cards**: 27
 - **PowerUps**: 2
 - **Chat Messages**: 4
