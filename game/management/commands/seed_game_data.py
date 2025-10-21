@@ -50,6 +50,9 @@ class Command(BaseCommand):
             games = self._create_games(boards, users)
             self.stdout.write(self.style.SUCCESS(f'Created {len(games)} games'))
 
+            # Count cities created
+            total_cities = City.objects.count()
+            
             self.stdout.write(self.style.SUCCESS('\n=== Seed data created successfully! ==='))
             self.stdout.write(self.style.SUCCESS('\nTest Credentials:'))
             self.stdout.write('  Username: player1 | Password: testpass123')
@@ -58,7 +61,9 @@ class Command(BaseCommand):
             self.stdout.write('  Username: player4 | Password: testpass123')
             self.stdout.write('\nGames Created:')
             for game in games:
-                self.stdout.write(f'  - {game.name} ({game.status}): {game.get_active_players_count()} players')
+                city_count = City.objects.filter(player__game=game).count()
+                self.stdout.write(f'  - {game.name} ({game.status}): {game.get_active_players_count()} players, {city_count} cities')
+            self.stdout.write(f'\nTotal cities built: {total_cities}')
 
     def _clear_data(self):
         """Clear existing game data."""
@@ -455,7 +460,7 @@ class Command(BaseCommand):
             max_players=2,
             starting_money=1500,
         )
-        Player.objects.create(
+        human_player = Player.objects.create(
             game=game,
             user=users[0],
             name=users[0].username,
@@ -463,7 +468,7 @@ class Command(BaseCommand):
             position=15,
             turn_order=0,
         )
-        Player.objects.create(
+        ai_player = Player.objects.create(
             game=game,
             user=None,
             name="AI Bot",
@@ -476,10 +481,36 @@ class Command(BaseCommand):
         tiles = game.board.tiles.filter(terrain_type='property')[:5]
         for i, tile in enumerate(tiles):
             if i < 3:
-                tile.owner = game.players.first()
+                tile.owner = human_player
             else:
-                tile.owner = game.players.last()
+                tile.owner = ai_player
             tile.save()
+
+        # Add cities for solo game
+        City.objects.create(
+            tile=tiles[0],
+            player=human_player,
+            name="Capital City",
+            level=2,
+            population=250,
+            defense=20,
+            production_capacity=30,
+            storage_capacity=300,
+            health=100,
+            is_capital=True,
+        )
+        City.objects.create(
+            tile=tiles[3],
+            player=ai_player,
+            name="AI Fortress",
+            level=1,
+            population=150,
+            defense=15,
+            production_capacity=20,
+            storage_capacity=200,
+            health=100,
+            is_capital=True,
+        )
 
         games.append(game)
 
@@ -526,6 +557,28 @@ class Command(BaseCommand):
             if i < 5:
                 tile.improvement_level = random.randint(0, 2)
             tile.save()
+
+        # Create cities on some owned properties
+        city_names = [
+            "New York", "London", "Tokyo", "Paris", "Berlin",
+            "Moscow", "Sydney", "Toronto", "Mumbai", "Dubai"
+        ]
+        cities_created = []
+        for i, tile in enumerate(properties[:10]):
+            if tile.owner:
+                city = City.objects.create(
+                    tile=tile,
+                    player=tile.owner,
+                    name=city_names[i],
+                    level=random.randint(1, 3),
+                    population=random.randint(100, 500),
+                    defense=random.randint(10, 30),
+                    production_capacity=random.randint(10, 50),
+                    storage_capacity=random.randint(100, 500),
+                    health=random.randint(80, 100),
+                    is_capital=(i % len(players) == 0 and i < len(players)),
+                )
+                cities_created.append(city)
 
         # Create some turns and actions
         for turn_num in range(1, 8):

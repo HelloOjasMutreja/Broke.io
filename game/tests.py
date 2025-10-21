@@ -141,6 +141,103 @@ class TileModelTest(TestCase):
         self.assertEqual(self.tile.calculate_rent(), 40)
 
 
+class CityModelTest(TestCase):
+    def setUp(self):
+        self.board = Board.objects.create(name="Test Board", width=11, height=11)
+        self.game = Game.objects.create(board=self.board, name="Test Game")
+        self.player = Player.objects.create(
+            game=self.game,
+            name="Test Player",
+            turn_order=0
+        )
+        self.tile = Tile.objects.create(
+            board=self.board,
+            position=1,
+            x_coordinate=10,
+            y_coordinate=11,
+            name="Test Property",
+            terrain_type="property",
+            price=100,
+            rent=10,
+            owner=self.player
+        )
+        self.city = City.objects.create(
+            tile=self.tile,
+            player=self.player,
+            name="Test City",
+            level=1,
+            population=100,
+            defense=10,
+            production_capacity=10,
+            storage_capacity=100,
+            health=100
+        )
+
+    def test_city_creation(self):
+        self.assertEqual(self.city.name, "Test City")
+        self.assertEqual(self.city.level, 1)
+        self.assertEqual(self.city.population, 100)
+        self.assertEqual(self.city.defense, 10)
+        self.assertEqual(self.city.health, 100)
+        self.assertFalse(self.city.is_capital)
+
+    def test_city_str(self):
+        self.assertIn("Test City", str(self.city))
+        self.assertIn("Level 1", str(self.city))
+        self.assertIn(self.player.name, str(self.city))
+
+    def test_city_upgrade(self):
+        initial_level = self.city.level
+        initial_defense = self.city.defense
+        initial_production = self.city.production_capacity
+        initial_storage = self.city.storage_capacity
+        
+        self.city.upgrade()
+        
+        self.assertEqual(self.city.level, initial_level + 1)
+        self.assertEqual(self.city.defense, initial_defense + 5)
+        self.assertEqual(self.city.production_capacity, initial_production + 10)
+        self.assertEqual(self.city.storage_capacity, initial_storage + 50)
+
+    def test_city_upgrade_max_level(self):
+        self.city.level = 10
+        self.city.save()
+        
+        self.city.upgrade()
+        
+        # Should not exceed max level
+        self.assertEqual(self.city.level, 10)
+
+    def test_city_repair(self):
+        self.city.health = 50
+        self.city.save()
+        
+        self.city.repair(30)
+        
+        self.assertEqual(self.city.health, 80)
+
+    def test_city_repair_max_health(self):
+        self.city.health = 90
+        self.city.save()
+        
+        self.city.repair(20)
+        
+        # Should not exceed max health
+        self.assertEqual(self.city.health, 100)
+
+    def test_capital_city(self):
+        capital = City.objects.create(
+            tile=self.tile,
+            player=self.player,
+            name="Capital",
+            level=3,
+            is_capital=True
+        )
+        
+        self.assertTrue(capital.is_capital)
+        self.assertEqual(capital.level, 3)
+
+
 class ResourceModelTest(TestCase):
     def setUp(self):
         self.board = Board.objects.create(name="Test Board", width=11, height=11)
@@ -313,6 +410,150 @@ class ChatAuctionExtrasTest(TestCase):
         )
         self.assertEqual(txn.amount, 100)
         self.assertEqual(txn.reason, 'Rent')
+
+
+class GameWithCitiesTest(TestCase):
+    def setUp(self):
+        # Create board
+        self.board = Board.objects.create(name="Test Board", width=11, height=11)
+        
+        # Create game
+        self.game = Game.objects.create(
+            board=self.board,
+            name="Test Game with Cities",
+            mode="friends",
+            status="active"
+        )
+        
+        # Create players
+        self.user1 = User.objects.create_user(username='user1', password='pass123')
+        self.user2 = User.objects.create_user(username='user2', password='pass123')
+        
+        self.player1 = Player.objects.create(
+            game=self.game,
+            user=self.user1,
+            name="Player 1",
+            money=2000,
+            turn_order=0
+        )
+        self.player2 = Player.objects.create(
+            game=self.game,
+            user=self.user2,
+            name="Player 2",
+            money=1500,
+            turn_order=1
+        )
+        
+        # Create tiles with owners
+        self.tile1 = Tile.objects.create(
+            board=self.board,
+            position=1,
+            x_coordinate=9,
+            y_coordinate=10,
+            name="Property 1",
+            terrain_type="property",
+            price=200,
+            rent=20,
+            owner=self.player1
+        )
+        self.tile2 = Tile.objects.create(
+            board=self.board,
+            position=3,
+            x_coordinate=7,
+            y_coordinate=10,
+            name="Property 2",
+            terrain_type="property",
+            price=300,
+            rent=30,
+            owner=self.player2
+        )
+
+    def test_game_with_multiple_cities(self):
+        """Test creating a game with multiple cities"""
+        city1 = City.objects.create(
+            tile=self.tile1,
+            player=self.player1,
+            name="New York",
+            level=2,
+            population=200,
+            is_capital=True
+        )
+        city2 = City.objects.create(
+            tile=self.tile2,
+            player=self.player2,
+            name="London",
+            level=1,
+            population=150
+        )
+        
+        # Verify cities are created
+        self.assertEqual(City.objects.filter(player=self.player1).count(), 1)
+        self.assertEqual(City.objects.filter(player=self.player2).count(), 1)
+        
+        # Verify city attributes
+        self.assertTrue(city1.is_capital)
+        self.assertFalse(city2.is_capital)
+        self.assertEqual(city1.level, 2)
+        self.assertEqual(city2.level, 1)
+
+    def test_city_ownership_matches_tile_owner(self):
+        """Test that city owner matches tile owner"""
+        city = City.objects.create(
+            tile=self.tile1,
+            player=self.player1,
+            name="Test City",
+            level=1
+        )
+        
+        self.assertEqual(city.player, self.tile1.owner)
+
+    def test_multiple_upgrades(self):
+        """Test upgrading a city multiple times"""
+        city = City.objects.create(
+            tile=self.tile1,
+            player=self.player1,
+            name="Growing City",
+            level=1,
+            defense=10,
+            production_capacity=10,
+            storage_capacity=100
+        )
+        
+        # Upgrade 3 times
+        for _ in range(3):
+            city.upgrade()
+        
+        self.assertEqual(city.level, 4)
+        self.assertEqual(city.defense, 25)  # 10 + 3*5
+        self.assertEqual(city.production_capacity, 40)  # 10 + 3*10
+        self.assertEqual(city.storage_capacity, 250)  # 100 + 3*50
+
+    def test_player_with_multiple_cities(self):
+        """Test a player owning multiple cities"""
+        # Create additional tiles for player 1
+        tile3 = Tile.objects.create(
+            board=self.board,
+            position=5,
+            x_coordinate=5,
+            y_coordinate=10,
+            name="Property 3",
+            terrain_type="property",
+            price=250,
+            rent=25,
+            owner=self.player1
+        )
+        
+        # Create multiple cities for player 1
+        City.objects.create(tile=self.tile1, player=self.player1, name="City A", level=2)
+        City.objects.create(tile=tile3, player=self.player1, name="City B", level=1)
+        
+        # Verify player has 2 cities
+        player_cities = City.objects.filter(player=self.player1)
+        self.assertEqual(player_cities.count(), 2)
+        
+        # Verify total levels
+        total_levels = sum(city.level for city in player_cities)
+        self.assertEqual(total_levels, 3)
 
 
 class ViewTestCase(TestCase):
