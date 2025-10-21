@@ -16,19 +16,57 @@ pip install -r requirements.txt
 python manage.py migrate
 ```
 
-### 3. Create Superuser (Optional)
+### 3. Seed Test Data (Recommended for Testing)
+
+Populate the database with test data including boards, tiles, games, players, cards, and more:
+
+```bash
+python manage.py seed_game_data
+```
+
+This creates:
+- 3 boards (Classic, Cyber City, Fantasy Realm) with 40 tiles each
+- 27 cards (Chance and Community Chest)
+- 4 games in various states (waiting, active, with AI)
+- 4 test user accounts (player1-4, password: testpass123)
+- Sample powerups, chat messages, and game history
+
+To clear existing data and reseed:
+
+```bash
+python manage.py seed_game_data --clear
+```
+
+### 4. Create Superuser (Optional)
 
 ```bash
 python manage.py createsuperuser
 ```
 
-### 4. Access Admin Interface
+### 5. Access Admin Interface
 
 ```bash
 python manage.py runserver
 ```
 
 Visit: http://localhost:8000/admin/
+
+### Testing the Game
+
+After seeding data, you can:
+
+1. **Login with test accounts**: Use player1/testpass123 (or player2-4)
+2. **Join existing games**: Visit `/game/` to see available games
+3. **Start a new game**: Select a board and game mode
+4. **Play active games**: Join "Active Game - Mid Battle" to test mid-game features
+5. **Test AI gameplay**: Join "Solo vs AI" game
+
+The seeded data includes:
+- Properties already owned by players
+- Players at different positions on the board
+- Active turns ready to play
+- Chat messages and game history
+- PowerUps and resources for testing
 
 ## Model Structure
 

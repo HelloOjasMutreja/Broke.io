@@ -55,7 +55,16 @@ A modern, web-based reimagination of Monopoly! Build your empire, trade properti
    python manage.py migrate
    ```
 
-4. **Start the Django development server**
+4. **Seed test data (Recommended)**
+   ```bash
+   python manage.py seed_game_data
+   ```
+   
+   This creates sample boards, games, players, and cards for testing. Test credentials:
+   - Username: player1-4
+   - Password: testpass123
+
+5. **Start the Django development server**
    ```bash
    python manage.py runserver
    ```
