@@ -64,21 +64,31 @@ def join_game(request, game_id):
         return JsonResponse({'error': 'Game is full'}, status=400)
     
     # Check if player is already in the game
-    if game.players.filter(user=request.user).exists():
+    existing_player = game.players.filter(user=request.user).first()
+    if existing_player:
         return redirect('game:game_detail', game_id=game.id)
     
-    # Get next turn order
-    max_turn_order = game.players.aggregate(models.Max('turn_order'))['turn_order__max'] or -1
-    
-    # Create player
-    Player.objects.create(
-        game=game,
-        user=request.user,
-        name=request.user.username,
-        money=game.starting_money,
-        turn_order=max_turn_order + 1,
-        is_active=True
-    )
+    # Use transaction to ensure atomicity and prevent race conditions
+    with transaction.atomic():
+        # Get all active players and find the next available turn order
+        existing_turn_orders = set(
+            game.players.filter(is_active=True).values_list('turn_order', flat=True)
+        )
+        
+        # Find the smallest available turn_order
+        next_turn_order = 0
+        while next_turn_order in existing_turn_orders:
+            next_turn_order += 1
+        
+        # Create player
+        Player.objects.create(
+            game=game,
+            user=request.user,
+            name=request.user.username,
+            money=game.starting_money,
+            turn_order=next_turn_order,
+            is_active=True
+        )
     
     return redirect('game:game_detail', game_id=game.id)
 
