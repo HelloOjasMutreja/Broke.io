@@ -5,6 +5,8 @@ from django.db import models, transaction
 from django.utils import timezone
 from django.utils.crypto import get_random_string
 from django.core.validators import MinValueValidator
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 User = settings.AUTH_USER_MODEL
 
@@ -19,7 +21,10 @@ class GameStatus(models.TextChoices):
     FINISHED = "FINISHED", "Finished"
 
 class TileType(models.TextChoices):
-    CITY = "CITY", "City"
+    """
+    Tile types for non-property tiles. CITY has been removed - use City model instead.
+    Properties/cities are handled via the City model with a OneToOne relationship to Tile.
+    """
     UTILITY = "UTILITY", "Utility"
     CHANCE = "CHANCE", "Chance"
     TREASURE = "TREASURE", "Treasure"
@@ -28,6 +33,7 @@ class TileType(models.TextChoices):
     JAIL = "JAIL", "Jail"
     GO_TO_JAIL = "GO_TO_JAIL", "GoToJail"
     FREE_PARKING = "FREE_PARKING", "FreeParking"
+    VACATION = "VACATION", "Vacation"
     CUSTOM = "CUSTOM", "Custom"
 
 def generate_public_id(length=6):
@@ -78,11 +84,95 @@ class Board(models.Model):
             "vacation": 2 * n - 1,
             "go_to_prison": 3 * n - 1
         }
+    
+    def initialize_positions(self):
+        """
+        Initialize or update board positions with canonical special tiles.
+        This is idempotent and transactional - safe to call multiple times.
+        
+        Creates BoardPosition entries for all positions that don't exist yet,
+        and ensures special positions (start, prison, vacation, go_to_prison) 
+        have the appropriate canonical tiles.
+        
+        Does NOT overwrite existing custom positions.
+        """
+        from django.db import transaction
+        
+        with transaction.atomic():
+            special_pos = self.default_special_positions()
+            total_positions = self.total_tiles
+            
+            # Get or create canonical special tiles
+            special_tiles = {
+                "start": Tile.objects.get_or_create(
+                    title="Start",
+                    tile_type=TileType.START,
+                    defaults={
+                        "description": "Collect salary when passing",
+                        "action": {"type": "collect", "amount": 200}
+                    }
+                )[0],
+                "prison": Tile.objects.get_or_create(
+                    title="Prison/Visiting",
+                    tile_type=TileType.JAIL,
+                    defaults={
+                        "description": "Just visiting or in jail",
+                        "action": {"type": "jail_check"}
+                    }
+                )[0],
+                "vacation": Tile.objects.get_or_create(
+                    title="Vacation",
+                    tile_type=TileType.VACATION,
+                    defaults={
+                        "description": "Take a vacation",
+                        "action": {"type": "rest"}
+                    }
+                )[0],
+                "go_to_prison": Tile.objects.get_or_create(
+                    title="Go to Prison",
+                    tile_type=TileType.GO_TO_JAIL,
+                    defaults={
+                        "description": "Go directly to prison",
+                        "action": {"type": "send_to_jail", "target_position": special_pos["prison"]}
+                    }
+                )[0],
+            }
+            
+            # Get existing positions for this board
+            existing_positions = set(
+                BoardPosition.objects.filter(board=self).values_list('position', flat=True)
+            )
+            
+            # Create BoardPosition entries for missing positions
+            positions_to_create = []
+            for pos in range(total_positions):
+                if pos in existing_positions:
+                    continue  # Don't overwrite existing positions
+                
+                # Check if this is a special position
+                tile_for_pos = None
+                for key, special_pos_idx in special_pos.items():
+                    if pos == special_pos_idx:
+                        tile_for_pos = special_tiles[key]
+                        break
+                
+                if tile_for_pos:
+                    # This is a special position - auto-populate with canonical tile
+                    positions_to_create.append(
+                        BoardPosition(board=self, position=pos, tile=tile_for_pos)
+                    )
+                # For non-special positions, we don't create entries automatically
+                # They should be populated by game designers or left empty
+            
+            if positions_to_create:
+                BoardPosition.objects.bulk_create(positions_to_create)
 
 class Tile(models.Model):
     """
-    A canonical tile entity. This is reusable across boards (multiple boards may
-    reference the same Tile in multiple positions via BoardTile).
+    A canonical tile entity representing non-property tiles (START, JAIL, CHANCE, etc.).
+    Position is NOT stored here - it belongs to BoardPosition which maps tiles to board positions.
+    This is reusable across boards (multiple boards may reference the same Tile at different positions).
+    For property tiles, use City model with OneToOne relationship to Tile.
     """
     title = models.CharField(max_length=120)
     tile_type = models.CharField(max_length=20, choices=TileType.choices, default=TileType.CUSTOM)
@@ -96,9 +186,67 @@ class Tile(models.Model):
     def __str__(self):
         return f"{self.title} [{self.tile_type}]"
 
-# This model maps a Tile to a Board at a specific position.
+# This model maps a position on a Board to either a Tile or a City.
+class BoardPosition(models.Model):
+    """
+    Maps a board position to either a canonical Tile (for non-property tiles like START, JAIL)
+    or a City (for property tiles). Exactly one of (tile, city) must be set.
+    
+    This is the board-placement layer that connects board positions to game content.
+    Multiple Game instances can reference the same Board and its BoardPositions.
+    """
+    board = models.ForeignKey(Board, related_name="positions", on_delete=models.CASCADE)
+    position = models.PositiveIntegerField(
+        help_text="Position index on the board. Must be in range [0, board.size*board.size - 1]."
+    )
+    # Exactly one of these must be set (validated in clean())
+    tile = models.ForeignKey(
+        Tile, 
+        related_name="board_positions", 
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        help_text="Reference to a non-property tile (START, JAIL, CHANCE, etc.)"
+    )
+    city = models.ForeignKey(
+        'City',  # String reference to avoid circular import issues
+        related_name="board_positions",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        help_text="Reference to a property/city tile"
+    )
+    # optional: allow position-specific overrides (e.g., custom action for this placement)
+    override_action = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        unique_together = ("board", "position")
+        ordering = ["position"]
+
+    def clean(self):
+        """Validate that exactly one of (tile, city) is set."""
+        from django.core.exceptions import ValidationError
+        
+        if self.tile is None and self.city is None:
+            raise ValidationError("BoardPosition must have either a tile or a city set.")
+        if self.tile is not None and self.city is not None:
+            raise ValidationError("BoardPosition cannot have both tile and city set.")
+    
+    def save(self, *args, **kwargs):
+        """Override save to call full_clean for validation."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        content = self.tile.title if self.tile else (self.city.tile.title if self.city else "Empty")
+        return f"{self.board.name} @ {self.position} -> {content}"
+
+# Legacy model - kept for backwards compatibility during migration
 class BoardTile(models.Model):
     """
+    DEPRECATED: Legacy model kept for backwards compatibility.
+    Use BoardPosition instead for new code.
+    
     Instances of tiles on a board. A single Tile can appear multiple times on the same board
     or multiple boards. BoardTile is the instance-level representation used in Game sessions.
     """
@@ -218,18 +366,38 @@ class Game(models.Model):
 
     def initialize_board_state(self):
         """
-        Create per-game BoardTileState entries for each BoardTile instance so ownership and
-        development are tracked per game, not globally. Called at game start.
+        Create per-game GameBoardTileState entries for each position on the board
+        so ownership and development are tracked per game, not globally. 
+        Called at game start.
+        
+        Works with both BoardPosition (new) and BoardTile (legacy) for backwards compatibility.
         """
         # Prevent double init
         if GameBoardTileState.objects.filter(game=self).exists():
             return
 
-        board_tiles = BoardTile.objects.filter(board=self.board).order_by("position")
-        states = []
-        for bt in board_tiles:
-            states.append(GameBoardTileState(game=self, board_tile=bt, position=bt.position))
-        GameBoardTileState.objects.bulk_create(states)
+        # Try new schema first (BoardPosition)
+        board_positions = BoardPosition.objects.filter(board=self.board).order_by("position")
+        if board_positions.exists():
+            states = []
+            for bp in board_positions:
+                states.append(GameBoardTileState(
+                    game=self, 
+                    board_position=bp, 
+                    position=bp.position
+                ))
+            GameBoardTileState.objects.bulk_create(states)
+        else:
+            # Fallback to legacy schema (BoardTile)
+            board_tiles = BoardTile.objects.filter(board=self.board).order_by("position")
+            states = []
+            for bt in board_tiles:
+                states.append(GameBoardTileState(
+                    game=self, 
+                    board_tile=bt, 
+                    position=bt.position
+                ))
+            GameBoardTileState.objects.bulk_create(states)
 
 # -------------------------------------
 # Players & lobby players
@@ -273,11 +441,30 @@ class LobbyPlayer(models.Model):
 # -------------------------------------
 class GameBoardTileState(models.Model):
     """
-    Per-game state for each BoardTile instance: who owns it, how many houses, is mortgaged, etc.
-    This allows the same Tile used across multiple games/boards to have separate states.
+    Per-game state for each board position: who owns it, how many houses, is mortgaged, etc.
+    This allows the same position used across multiple games to have separate states.
+    
+    Links to BoardPosition (new) or BoardTile (legacy) for backwards compatibility.
     """
     game = models.ForeignKey(Game, related_name="tile_states", on_delete=models.CASCADE)
-    board_tile = models.ForeignKey(BoardTile, related_name="game_states", on_delete=models.CASCADE)
+    # New field: reference to BoardPosition
+    board_position = models.ForeignKey(
+        BoardPosition,
+        related_name="game_states",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        help_text="Reference to BoardPosition (new schema)"
+    )
+    # Legacy field: kept for backwards compatibility
+    board_tile = models.ForeignKey(
+        BoardTile,
+        related_name="game_states",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        help_text="DEPRECATED: Use board_position instead"
+    )
     position = models.PositiveIntegerField()
     owner = models.ForeignKey(Player, related_name="owned_tiles", null=True, blank=True, on_delete=models.SET_NULL)
     houses = models.PositiveSmallIntegerField(default=0)  # 0..4 houses, 5 considered hotel if you like
@@ -289,7 +476,16 @@ class GameBoardTileState(models.Model):
         ordering = ["position"]
 
     def __str__(self):
-        return f"State: {self.board_tile.tile.title} @ {self.position} in {self.game.public_id}"
+        # Try to get title from board_position or board_tile
+        if self.board_position:
+            title = self.board_position.tile.title if self.board_position.tile else (
+                self.board_position.city.tile.title if self.board_position.city else "Unknown"
+            )
+        elif self.board_tile:
+            title = self.board_tile.tile.title
+        else:
+            title = "Unknown"
+        return f"State: {title} @ {self.position} in {self.game.public_id}"
 
 # -------------------------------------
 # Turn, Action, Trade, Bid, Chat
@@ -353,3 +549,17 @@ class ChatMessage(models.Model):
 
     class Meta:
         ordering = ["created_at"]
+
+
+# -------------------------------------
+# Signals for auto-initialization
+# -------------------------------------
+@receiver(post_save, sender=Board)
+def auto_initialize_board_positions(sender, instance, created, **kwargs):
+    """
+    Auto-initialize board positions when a new Board is created.
+    This ensures special positions (START, JAIL, etc.) are populated automatically.
+    """
+    if created:
+        # Run initialization in a separate transaction to avoid conflicts
+        transaction.on_commit(lambda: instance.initialize_positions())

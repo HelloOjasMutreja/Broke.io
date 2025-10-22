@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from .models import (
-    Board, Tile, BoardTile, City, Game, Player, LobbyPlayer,
+    Board, Tile, BoardTile, BoardPosition, City, Game, Player, LobbyPlayer,
     GameBoardTileState, Turn, ActionLog, Trade, Bid, ChatMessage,
     GameStatus, TileType
 )
@@ -44,7 +44,7 @@ class TileModelTest(TestCase):
     def setUp(self):
         self.tile = Tile.objects.create(
             title="Mediterranean Avenue",
-            tile_type=TileType.CITY,
+            tile_type=TileType.CUSTOM,  # Changed from CITY
             description="A property tile",
             action={"type": "property", "buyable": True},
             metadata={"color": "brown"}
@@ -53,12 +53,12 @@ class TileModelTest(TestCase):
     def test_tile_creation(self):
         """Test tile is created correctly"""
         self.assertEqual(self.tile.title, "Mediterranean Avenue")
-        self.assertEqual(self.tile.tile_type, TileType.CITY)
+        self.assertEqual(self.tile.tile_type, TileType.CUSTOM)  # Changed from CITY
         self.assertTrue(self.tile.action["buyable"])
 
     def test_tile_str(self):
         """Test tile string representation"""
-        self.assertEqual(str(self.tile), "Mediterranean Avenue [CITY]")
+        self.assertEqual(str(self.tile), "Mediterranean Avenue [CUSTOM]")  # Changed from CITY
 
 
 class BoardTileModelTest(TestCase):
@@ -95,7 +95,7 @@ class CityModelTest(TestCase):
     def setUp(self):
         self.tile = Tile.objects.create(
             title="Boardwalk",
-            tile_type=TileType.CITY
+            tile_type=TileType.CUSTOM  # Changed from CITY
         )
         self.city = City.objects.create(
             tile=self.tile,
@@ -234,7 +234,7 @@ class LobbyPlayerModelTest(TestCase):
 class GameBoardTileStateModelTest(TestCase):
     def setUp(self):
         self.board = Board.objects.create(name="Test Board", size=10)
-        self.tile = Tile.objects.create(title="Property", tile_type=TileType.CITY)
+        self.tile = Tile.objects.create(title="Property", tile_type=TileType.CUSTOM)  # Changed from CITY
         self.board_tile = BoardTile.objects.create(
             board=self.board,
             tile=self.tile,
@@ -338,7 +338,7 @@ class TradeModelTest(TestCase):
 class BidModelTest(TestCase):
     def setUp(self):
         self.board = Board.objects.create(name="Test Board", size=10)
-        self.tile = Tile.objects.create(title="Property", tile_type=TileType.CITY)
+        self.tile = Tile.objects.create(title="Property", tile_type=TileType.CUSTOM)  # Changed from CITY
         self.board_tile = BoardTile.objects.create(
             board=self.board,
             tile=self.tile,
@@ -405,7 +405,7 @@ class GameFlowTest(TestCase):
         for i in range(10):
             tile = Tile.objects.create(
                 title=f"Tile {i}",
-                tile_type=TileType.CITY if i > 0 else TileType.START
+                tile_type=TileType.CUSTOM if i > 0 else TileType.START  # Changed CITY to CUSTOM
             )
             BoardTile.objects.create(
                 board=self.board,
@@ -519,3 +519,231 @@ class GameFlowTest(TestCase):
         initial_count = states.count()
         self.game.initialize_board_state()
         self.assertEqual(GameBoardTileState.objects.filter(game=self.game).count(), initial_count)
+
+
+class BoardPositionModelTest(TestCase):
+    """Test the new BoardPosition model"""
+    
+    def setUp(self):
+        self.board = Board.objects.create(name="Test Board", size=10)
+        self.tile = Tile.objects.create(title="GO", tile_type=TileType.START)
+        self.city_tile = Tile.objects.create(title="Park Place", tile_type=TileType.CUSTOM)
+        self.city = City.objects.create(
+            tile=self.city_tile,
+            base_price=350,
+            rent_base=35
+        )
+
+    def test_board_position_with_tile(self):
+        """Test creating BoardPosition with a tile"""
+        bp = BoardPosition.objects.create(
+            board=self.board,
+            position=0,
+            tile=self.tile
+        )
+        self.assertEqual(bp.position, 0)
+        self.assertEqual(bp.tile, self.tile)
+        self.assertIsNone(bp.city)
+
+    def test_board_position_with_city(self):
+        """Test creating BoardPosition with a city"""
+        bp = BoardPosition.objects.create(
+            board=self.board,
+            position=1,
+            city=self.city
+        )
+        self.assertEqual(bp.position, 1)
+        self.assertIsNone(bp.tile)
+        self.assertEqual(bp.city, self.city)
+
+    def test_board_position_validation_both_set(self):
+        """Test that BoardPosition cannot have both tile and city"""
+        with self.assertRaises(ValidationError):
+            bp = BoardPosition(
+                board=self.board,
+                position=2,
+                tile=self.tile,
+                city=self.city
+            )
+            bp.save()
+
+    def test_board_position_validation_neither_set(self):
+        """Test that BoardPosition must have either tile or city"""
+        with self.assertRaises(ValidationError):
+            bp = BoardPosition(
+                board=self.board,
+                position=2
+            )
+            bp.save()
+
+    def test_board_position_unique_constraint(self):
+        """Test that same position cannot be used twice on same board"""
+        BoardPosition.objects.create(
+            board=self.board,
+            position=0,
+            tile=self.tile
+        )
+        with self.assertRaises(Exception):
+            BoardPosition.objects.create(
+                board=self.board,
+                position=0,
+                city=self.city
+            )
+
+    def test_board_position_str(self):
+        """Test BoardPosition string representation"""
+        bp = BoardPosition.objects.create(
+            board=self.board,
+            position=0,
+            tile=self.tile
+        )
+        self.assertIn("Test Board", str(bp))
+        self.assertIn("GO", str(bp))
+        self.assertIn("0", str(bp))
+
+
+class BoardInitializationTest(TestCase):
+    """Test board auto-initialization functionality"""
+    
+    def test_board_auto_initializes_on_creation(self):
+        """Test that board positions are auto-created when board is created"""
+        board = Board.objects.create(name="Auto Board", size=5)
+        
+        # Manually call initialize_positions since signal uses on_commit
+        # which doesn't fire in test transactions
+        board.initialize_positions()
+        
+        # Check that special positions were created
+        special_pos = board.default_special_positions()
+        
+        # Check special positions exist
+        for name, pos in special_pos.items():
+            bp = BoardPosition.objects.filter(board=board, position=pos).first()
+            self.assertIsNotNone(
+                bp, 
+                f"Special position {name} at {pos} should be auto-created"
+            )
+            self.assertIsNotNone(bp.tile, f"Special position {name} should have a tile")
+
+    def test_initialize_positions_idempotent(self):
+        """Test that initialize_positions can be called multiple times safely"""
+        board = Board.objects.create(name="Test Board", size=5)
+        
+        # Call initialize_positions multiple times
+        board.initialize_positions()
+        board.initialize_positions()
+        board.initialize_positions()
+        
+        # Check that we don't have duplicate positions
+        positions = BoardPosition.objects.filter(board=board)
+        position_values = [p.position for p in positions]
+        
+        # No duplicates
+        self.assertEqual(len(position_values), len(set(position_values)))
+
+    def test_initialize_positions_special_tiles(self):
+        """Test that special positions get correct tile types"""
+        board = Board.objects.create(name="Test Board", size=5)
+        board.initialize_positions()
+        
+        special_pos = board.default_special_positions()
+        
+        # Check START tile
+        start_bp = BoardPosition.objects.get(board=board, position=special_pos["start"])
+        self.assertEqual(start_bp.tile.tile_type, TileType.START)
+        
+        # Check JAIL tile
+        prison_bp = BoardPosition.objects.get(board=board, position=special_pos["prison"])
+        self.assertEqual(prison_bp.tile.tile_type, TileType.JAIL)
+        
+        # Check VACATION tile
+        vacation_bp = BoardPosition.objects.get(board=board, position=special_pos["vacation"])
+        self.assertEqual(vacation_bp.tile.tile_type, TileType.VACATION)
+        
+        # Check GO_TO_JAIL tile
+        go_to_prison_bp = BoardPosition.objects.get(board=board, position=special_pos["go_to_prison"])
+        self.assertEqual(go_to_prison_bp.tile.tile_type, TileType.GO_TO_JAIL)
+
+    def test_initialize_positions_does_not_overwrite_custom(self):
+        """Test that initialize_positions doesn't overwrite existing positions"""
+        board = Board.objects.create(name="Test Board", size=5)
+        
+        # Create a custom tile at position 0 (which would normally be START)
+        custom_tile = Tile.objects.create(title="Custom", tile_type=TileType.CUSTOM)
+        custom_bp = BoardPosition.objects.create(
+            board=board,
+            position=0,
+            tile=custom_tile
+        )
+        
+        # Now initialize positions
+        board.initialize_positions()
+        
+        # Check that position 0 still has the custom tile
+        bp = BoardPosition.objects.get(board=board, position=0)
+        self.assertEqual(bp.tile.title, "Custom")
+        self.assertEqual(bp.tile.tile_type, TileType.CUSTOM)
+
+
+class TileTypeTest(TestCase):
+    """Test that TileType.CITY has been removed"""
+    
+    def test_city_not_in_tile_type(self):
+        """Test that CITY is no longer a valid TileType"""
+        tile_types = [choice[0] for choice in TileType.choices]
+        self.assertNotIn("CITY", tile_types)
+    
+    def test_vacation_in_tile_type(self):
+        """Test that VACATION was added to TileType"""
+        tile_types = [choice[0] for choice in TileType.choices]
+        self.assertIn("VACATION", tile_types)
+
+
+class GameBoardTileStateNewSchemaTest(TestCase):
+    """Test GameBoardTileState works with new BoardPosition schema"""
+    
+    def setUp(self):
+        self.board = Board.objects.create(name="Test Board", size=5)
+        self.tile = Tile.objects.create(title="Property", tile_type=TileType.CUSTOM)
+        self.board_position = BoardPosition.objects.create(
+            board=self.board,
+            position=5,
+            tile=self.tile
+        )
+        self.user = User.objects.create_user(username="testuser", password="pass123")
+        self.game = Game.objects.create(board=self.board, owner=self.user)
+        self.player = Player.objects.create(display_name="Test Player")
+
+    def test_tile_state_with_board_position(self):
+        """Test creating GameBoardTileState with BoardPosition"""
+        tile_state = GameBoardTileState.objects.create(
+            game=self.game,
+            board_position=self.board_position,
+            position=5,
+            owner=self.player,
+            houses=2
+        )
+        self.assertEqual(tile_state.board_position, self.board_position)
+        self.assertIsNone(tile_state.board_tile)
+        self.assertEqual(tile_state.houses, 2)
+
+    def test_initialize_board_state_with_positions(self):
+        """Test that initialize_board_state works with BoardPosition"""
+        # Note: setUp already creates a position at 5
+        # Create some more board positions (within valid range for size 5)
+        # size 5 means positions 0-24 are valid
+        for i in range(5):
+            tile = Tile.objects.create(title=f"Tile {i}", tile_type=TileType.CUSTOM)
+            BoardPosition.objects.create(board=self.board, position=i, tile=tile)
+        
+        # Initialize game board state
+        self.game.initialize_board_state()
+        
+        # Check that states were created with board_position references
+        # We expect 6 states: 5 from the loop above + 1 from setUp (position 5)
+        states = GameBoardTileState.objects.filter(game=self.game)
+        self.assertEqual(states.count(), 6)
+        
+        for state in states:
+            self.assertIsNotNone(state.board_position)
+            self.assertIsNone(state.board_tile)  # Should not use legacy field
