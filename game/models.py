@@ -174,7 +174,7 @@ class Game(models.Model):
 
     # -------------- Lobby & Ready/Start logic --------------
     def players(self):
-        return self.lobby_players.select_related("user").order_by("seat_index")
+        return self.lobby_players.select_related("player").order_by("seat_index")
 
     def all_players_ready(self) -> bool:
         """
