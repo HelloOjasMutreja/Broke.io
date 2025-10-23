@@ -20,6 +20,11 @@ class GameStatus(models.TextChoices):
     PAUSED = "PAUSED", "Paused"
     FINISHED = "FINISHED", "Finished"
 
+class GameMode(models.TextChoices):
+    SOLO = "SOLO", "Solo"
+    FRIENDS = "FRIENDS", "Friends"
+    ONLINE = "ONLINE", "Online"
+
 class TileType(models.TextChoices):
     """
     Tile types for non-property tiles. CITY has been removed - use City model instead.
@@ -304,6 +309,7 @@ class Game(models.Model):
     owner = models.ForeignKey(User, related_name="owned_games", on_delete=models.SET_NULL, null=True)
     board = models.ForeignKey(Board, related_name="games", on_delete=models.PROTECT)
     status = models.CharField(max_length=20, choices=GameStatus.choices, default=GameStatus.LOBBY)
+    mode = models.CharField(max_length=20, choices=GameMode.choices, default=GameMode.ONLINE)
     created_at = models.DateTimeField(auto_now_add=True)
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
@@ -321,6 +327,38 @@ class Game(models.Model):
         return f"Game {self.public_id} ({self.status})"
 
     # -------------- Lobby & Ready/Start logic --------------
+    def get_active_players_count(self):
+        """
+        Get the number of active players in the game.
+        """
+        return self.lobby_players.count()
+    
+    def is_full(self):
+        """
+        Check if the game is at maximum capacity.
+        """
+        return self.get_active_players_count() >= self.max_players
+    
+    def can_user_join(self, user):
+        """
+        Check if a user can join this game.
+        A user can join if:
+        - The game is in LOBBY status
+        - The game is not full
+        - The user is not already in the game
+        - For FRIENDS mode, user must be owner or explicitly invited (for now, we'll allow if not full)
+        """
+        if self.status != GameStatus.LOBBY:
+            return False
+        if self.is_full():
+            return False
+        if user is None or not user.is_authenticated:
+            return False
+        # Check if user already has a player in this game
+        if Player.objects.filter(user=user, game_slots__game=self).exists():
+            return False
+        return True
+
     def players(self):
         return self.lobby_players.select_related("player").order_by("seat_index")
 
