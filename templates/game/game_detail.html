@@ -10,7 +10,7 @@
         body {
             margin: 0;
             padding: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1b2244 0%, #341652 100%);
         }
         
         .game-wrapper {
@@ -434,6 +434,78 @@
                             ⏭️ End Turn
                         </button>
                     </div>
+                        <!-- Board Game Markup from index.html -->
+                        <div id="game-board" class="animated-board">
+                            <!-- Corner Spaces -->
+                            <div class="space corner" data-position="0" data-type="go">
+                                <div class="space-content">
+                                    <div class="space-name">GO</div>
+                                    <div class="space-info">Collect $200</div>
+                                </div>
+                            </div>
+                            <!-- Bottom Row -->
+                            <div class="space property brown" data-position="1" data-price="60">
+                                <div class="property-color"></div>
+                                <div class="space-name">Mediterranean Avenue</div>
+                                <div class="space-price">$60</div>
+                            </div>
+                            <div class="space special" data-position="2" data-type="community-chest">
+                                <div class="space-name">Community Chest</div>
+                            </div>
+                            <div class="space property brown" data-position="3" data-price="60">
+                                <div class="property-color"></div>
+                                <div class="space-name">Baltic Avenue</div>
+                                <div class="space-price">$60</div>
+                            </div>
+                            <div class="space special" data-position="4" data-type="tax">
+                                <div class="space-name">Income Tax</div>
+                                <div class="space-info">Pay $200</div>
+                            </div>
+                            <div class="space railroad" data-position="5" data-price="200">
+                                <div class="space-name">Reading Railroad</div>
+                                <div class="space-price">$200</div>
+                            </div>
+                            <div class="space property light-blue" data-position="6" data-price="100">
+                                <div class="property-color"></div>
+                                <div class="space-name">Oriental Avenue</div>
+                                <div class="space-price">$100</div>
+                            </div>
+                            <div class="space special" data-position="7" data-type="chance">
+                                <div class="space-name">Chance</div>
+                            </div>
+                            <div class="space property light-blue" data-position="8" data-price="100">
+                                <div class="property-color"></div>
+                                <div class="space-name">Vermont Avenue</div>
+                                <div class="space-price">$100</div>
+                            </div>
+                            <div class="space property light-blue" data-position="9" data-price="120">
+                                <div class="property-color"></div>
+                                <div class="space-name">Connecticut Avenue</div>
+                                <div class="space-price">$120</div>
+                            </div>
+                            <!-- Jail Corner -->
+                            <div class="space corner" data-position="10" data-type="jail">
+                                <div class="space-content">
+                                    <div class="space-name">Jail</div>
+                                    <div class="space-info">Just Visiting</div>
+                                </div>
+                            </div>
+                            <!-- ... (rest of board markup from index.html) ... -->
+                            <!-- Center Board Area -->
+                            <div id="center-board">
+                                <div id="board-title">BROKE.IO</div>
+                                <div id="dice-area">
+                                    <div class="dice" id="dice1">
+                                        <div class="dice-face">⚅</div>
+                                    </div>
+                                    <div class="dice" id="dice2">
+                                        <div class="dice-face">⚅</div>
+                                    </div>
+                                </div>
+                                <button id="roll-dice-btn" class="action-btn">Roll Dice</button>
+                                <div id="current-turn">Your Turn</div>
+                            </div>
+                        </div>
                 {% else %}
                     <div class="waiting-message">
                         <h3>Game {{ game.get_status_display }}</h3>
@@ -453,6 +525,13 @@
             </div>
         </div>
     </div>
+    <!-- Board/logic scripts -->
+    <script src="{% static 'game.js' %}"></script>
+    <script src="{% static 'board.js' %}"></script>
+    <script src="{% static 'auction.js' %}"></script>
+    <script src="{% static 'chat.js' %}"></script>
+    <script src="{% static 'powerups.js' %}"></script>
+    <script src="{% static 'minigames.js' %}"></script>
     
     <script>
         const GAME_ID = {{ game.id }};

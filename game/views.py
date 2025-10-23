@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
@@ -18,6 +19,25 @@ def game_lobby(request):
     
     boards = Board.objects.all().order_by('name')
     
+=======
+5
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse, HttpResponseForbidden
+from .models import Game, Board, LobbyPlayer, Player, GameStatus
+from django.contrib import messages
+
+def game_lobby(request):
+    """Display all available games and allow creating new ones."""
+    games = Game.objects.select_related('board').order_by('-created_at')[:20]
+    boards = Board.objects.all()
+    # Add helper properties for template compatibility
+    for game in games:
+        game.get_active_players_count = game.lobby_players.count()
+        game.is_full = game.get_active_players_count >= game.max_players
+        game.get_mode_display = getattr(game, 'mode', 'Friends')
+>>>>>>> fa6d470 (added board to game_detail.html)
     context = {
         'games': games,
         'boards': boards,
@@ -25,6 +45,7 @@ def game_lobby(request):
     return render(request, 'game/lobby.html', context)
 
 @login_required
+<<<<<<< HEAD
 def create_game(request):
     """Create a new game."""
     if request.method == 'POST':
@@ -111,10 +132,57 @@ def game_detail(request, game_id):
     game = get_object_or_404(Game, id=game_id)
     
     # Get current user's player if they're in the game
+=======
+@require_POST
+def create_game(request):
+    """Create a new game from the lobby form."""
+    name = request.POST.get('game_name')
+    board_id = request.POST.get('board_id')
+    mode = request.POST.get('game_mode', 'friends')
+    max_players = int(request.POST.get('max_players', 4))
+    board = get_object_or_404(Board, id=board_id)
+    # Create Player for user if not exists
+    player, _ = Player.objects.get_or_create(user=request.user, defaults={"display_name": request.user.username})
+    game = Game.objects.create(
+        name=name,
+        board=board,
+        owner=request.user,
+        max_players=max_players,
+        status=GameStatus.LOBBY,
+    )
+    # Add creator as LobbyPlayer and owner
+    LobbyPlayer.objects.create(game=game, player=player, seat_index=0, is_ready=False, is_owner=True)
+    messages.success(request, f"Game '{name}' created!")
+    return redirect('game:game_detail', game_id=game.id)
+
+@login_required
+@require_POST
+def join_game(request, game_id):
+    """Join a game from the lobby."""
+    game = get_object_or_404(Game, id=game_id)
+    if game.lobby_players.count() >= game.max_players:
+        messages.error(request, "Game is full.")
+        return redirect('game:lobby')
+    player, _ = Player.objects.get_or_create(user=request.user, defaults={"display_name": request.user.username})
+    if LobbyPlayer.objects.filter(game=game, player=player).exists():
+        messages.info(request, "You are already in this game.")
+        return redirect('game:game_detail', game_id=game.id)
+    seat_index = game.lobby_players.count()
+    LobbyPlayer.objects.create(game=game, player=player, seat_index=seat_index)
+    messages.success(request, f"Joined game '{game.name}'!")
+    return redirect('game:game_detail', game_id=game.id)
+
+@login_required
+def game_detail(request, game_id):
+    """Show the detail page for a specific game."""
+    game = get_object_or_404(Game, id=game_id)
+    lobby_players = game.lobby_players.select_related('player').order_by('seat_index')
+>>>>>>> fa6d470 (added board to game_detail.html)
     current_player = None
     if request.user.is_authenticated:
         try:
             player = Player.objects.get(user=request.user)
+<<<<<<< HEAD
             current_player = game.lobby_players.filter(player=player).first()
         except Player.DoesNotExist:
             pass
@@ -122,6 +190,14 @@ def game_detail(request, game_id):
     context = {
         'game': game,
         'players': game.lobby_players.select_related('player').all(),
+=======
+            current_player = lobby_players.filter(player=player).first()
+        except Player.DoesNotExist:
+            current_player = None
+    context = {
+        'game': game,
+        'lobby_players': lobby_players,
+>>>>>>> fa6d470 (added board to game_detail.html)
         'current_player': current_player,
     }
     return render(request, 'game/game_detail.html', context)

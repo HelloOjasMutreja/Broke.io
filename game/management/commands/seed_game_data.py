@@ -173,13 +173,12 @@ class Command(BaseCommand):
                     BoardTile.objects.create(board=board, tile=tile, position=pos)
                     is_special = True
                     break
-            
             # If not special and we have properties left, make it a property
             if not is_special and prop_index < len(properties):
                 prop = properties[prop_index]
                 tile = Tile.objects.create(
                     title=prop['name'],
-                    tile_type=TileType.CITY,
+                    tile_type=TileType.CUSTOM,  # Use CUSTOM for property/city tiles
                     description=f"Property in {prop['color']} group"
                 )
                 # Create city data
@@ -231,7 +230,7 @@ class Command(BaseCommand):
                 tile_type = TileType.UTILITY
                 name = f'{theme_prefix} Station {i // 5}'
             else:
-                tile_type = TileType.CITY
+                tile_type = TileType.CUSTOM  # Use CUSTOM for property/city tiles
                 name = f'{theme_prefix} Space {i+1}'
 
             tile = Tile.objects.create(
@@ -240,8 +239,8 @@ class Command(BaseCommand):
                 description=f"{theme_prefix} themed tile"
             )
 
-            # Add city data for city tiles
-            if tile_type == TileType.CITY:
+            # Add city data for property/city tiles (now using CUSTOM)
+            if tile_type == TileType.CUSTOM:
                 price = (i + 1) * 20
                 City.objects.create(
                     tile=tile,
