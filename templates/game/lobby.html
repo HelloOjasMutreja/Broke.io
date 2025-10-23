@@ -236,7 +236,7 @@
                             <li class="game-item">
                                 <div class="game-item-header">
                                     <span class="game-name">{{ game.name }}</span>
-                                    <span class="game-status {{ game.status }}">{{ game.get_status_display }}</span>
+                                    <span class="game-status {{ game.status|lower }}">{{ game.get_status_display }}</span>
                                 </div>
                                 <div class="game-details">
                                     <span class="game-detail-item">
@@ -250,11 +250,10 @@
                                     </span>
                                 </div>
                                 {% if user.is_authenticated %}
-                                    {% if game.status == 'waiting' and not game.is_full %}
-                                        <form method="POST" action="{% url 'game:join_game' game.id %}" style="display: inline;">
-                                            {% csrf_token %}
-                                            <button type="submit" class="join-btn">Join Game</button>
-                                        </form>
+                                    {% if game.status == 'LOBBY' and not game.is_full %}
+                                        <a href="{% url 'game:join_game' game.id %}">
+                                            <button class="join-btn">Join Game</button>
+                                        </a>
                                     {% else %}
                                         <a href="{% url 'game:game_detail' game.id %}">
                                             <button class="join-btn">View Game</button>
@@ -288,7 +287,7 @@
                             <label for="board_id">Board</label>
                             <select id="board_id" name="board_id" required>
                                 {% for board in boards %}
-                                    <option value="{{ board.id }}">{{ board.name }} ({{ board.width }}x{{ board.height }})</option>
+                                    <option value="{{ board.id }}">{{ board.name }} ({{ board.size }}x{{ board.size }})</option>
                                 {% endfor %}
                             </select>
                         </div>
