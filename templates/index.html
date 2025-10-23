@@ -23,7 +23,10 @@
                     <span id="player-money">$1500</span>
                     <span id="player-level">Level 1</span>
                     <a href="{% url 'profile' %}" style="color: white; text-decoration: none; margin-left: 10px;">👤</a>
-                    <a href="{% url 'logout' %}" style="color: white; text-decoration: none; margin-left: 10px;">🚪</a>
+                    <form method="post" action="{% url 'logout' %}" style="display: inline; margin-left: 10px;">
+                        {% csrf_token %}
+                        <button type="submit" style="background: none; border: none; color: white; cursor: pointer; font-size: 16px; padding: 0;">🚪</button>
+                    </form>
                 {% else %}
                     <span id="player-name">Guest</span>
                     <span id="player-money">$1500</span>
