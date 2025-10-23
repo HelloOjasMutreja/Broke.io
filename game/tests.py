@@ -747,3 +747,273 @@ class GameBoardTileStateNewSchemaTest(TestCase):
         for state in states:
             self.assertIsNotNone(state.board_position)
             self.assertIsNone(state.board_tile)  # Should not use legacy field
+
+
+class GameModeAndJoinTest(TestCase):
+    """Test game mode filtering and join functionality"""
+    
+    def setUp(self):
+        # Create users
+        self.user1 = User.objects.create_user(username='user1', password='pass123')
+        self.user2 = User.objects.create_user(username='user2', password='pass123')
+        self.user3 = User.objects.create_user(username='user3', password='pass123')
+        
+        # Create board
+        self.board = Board.objects.create(name="Test Board", size=10)
+        self.board.initialize_positions()
+        
+        # Import GameMode here to avoid issues if it wasn't imported at top
+        from .models import GameMode
+        self.GameMode = GameMode
+        
+    def test_game_mode_default(self):
+        """Test that game mode defaults to ONLINE"""
+        game = Game.objects.create(
+            name="Default Game",
+            owner=self.user1,
+            board=self.board
+        )
+        self.assertEqual(game.mode, self.GameMode.ONLINE)
+    
+    def test_game_mode_choices(self):
+        """Test all game mode choices can be set"""
+        for mode in [self.GameMode.SOLO, self.GameMode.FRIENDS, self.GameMode.ONLINE]:
+            game = Game.objects.create(
+                name=f"Game {mode}",
+                owner=self.user1,
+                board=self.board,
+                mode=mode
+            )
+            self.assertEqual(game.mode, mode)
+    
+    def test_get_active_players_count(self):
+        """Test get_active_players_count method"""
+        game = Game.objects.create(
+            name="Test Game",
+            owner=self.user1,
+            board=self.board
+        )
+        
+        # Initially no players
+        self.assertEqual(game.get_active_players_count(), 0)
+        
+        # Add a player
+        player1 = Player.objects.create(user=self.user1, display_name='Player1')
+        LobbyPlayer.objects.create(game=game, player=player1, seat_index=0)
+        self.assertEqual(game.get_active_players_count(), 1)
+        
+        # Add another player
+        player2 = Player.objects.create(user=self.user2, display_name='Player2')
+        LobbyPlayer.objects.create(game=game, player=player2, seat_index=1)
+        self.assertEqual(game.get_active_players_count(), 2)
+    
+    def test_is_full(self):
+        """Test is_full method"""
+        game = Game.objects.create(
+            name="Test Game",
+            owner=self.user1,
+            board=self.board,
+            max_players=2
+        )
+        
+        # Game is not full initially
+        self.assertFalse(game.is_full())
+        
+        # Add one player
+        player1 = Player.objects.create(user=self.user1, display_name='Player1')
+        LobbyPlayer.objects.create(game=game, player=player1, seat_index=0)
+        self.assertFalse(game.is_full())
+        
+        # Add second player - now full
+        player2 = Player.objects.create(user=self.user2, display_name='Player2')
+        LobbyPlayer.objects.create(game=game, player=player2, seat_index=1)
+        self.assertTrue(game.is_full())
+    
+    def test_can_user_join_lobby_status(self):
+        """Test can_user_join with different game statuses"""
+        game = Game.objects.create(
+            name="Test Game",
+            owner=self.user1,
+            board=self.board,
+            status=GameStatus.LOBBY
+        )
+        
+        # User can join lobby game
+        self.assertTrue(game.can_user_join(self.user2))
+        
+        # User cannot join active game
+        game.status = GameStatus.ACTIVE
+        game.save()
+        self.assertFalse(game.can_user_join(self.user2))
+    
+    def test_can_user_join_full_game(self):
+        """Test can_user_join when game is full"""
+        game = Game.objects.create(
+            name="Test Game",
+            owner=self.user1,
+            board=self.board,
+            max_players=1
+        )
+        
+        # Add one player to fill the game
+        player1 = Player.objects.create(user=self.user1, display_name='Player1')
+        LobbyPlayer.objects.create(game=game, player=player1, seat_index=0)
+        
+        # User cannot join full game
+        self.assertFalse(game.can_user_join(self.user2))
+    
+    def test_can_user_join_already_in_game(self):
+        """Test can_user_join when user is already in game"""
+        game = Game.objects.create(
+            name="Test Game",
+            owner=self.user1,
+            board=self.board
+        )
+        
+        # Add user2 to the game
+        player2 = Player.objects.create(user=self.user2, display_name='Player2')
+        LobbyPlayer.objects.create(game=game, player=player2, seat_index=0)
+        
+        # User cannot join again
+        self.assertFalse(game.can_user_join(self.user2))
+    
+    def test_can_user_join_unauthenticated(self):
+        """Test can_user_join with unauthenticated user"""
+        game = Game.objects.create(
+            name="Test Game",
+            owner=self.user1,
+            board=self.board
+        )
+        
+        # None user cannot join
+        self.assertFalse(game.can_user_join(None))
+
+
+class GameLobbyViewTest(TestCase):
+    """Test game lobby view filtering"""
+    
+    def setUp(self):
+        from django.test import Client
+        from .models import GameMode
+        
+        self.client = Client()
+        self.user = User.objects.create_user(username='testuser', password='pass123')
+        
+        # Create board
+        self.board = Board.objects.create(name="Test Board", size=10)
+        self.board.initialize_positions()
+        
+        # Create games with different modes
+        self.online_game = Game.objects.create(
+            name="Online Game",
+            owner=self.user,
+            board=self.board,
+            mode=GameMode.ONLINE,
+            status=GameStatus.LOBBY
+        )
+        
+        self.friends_game = Game.objects.create(
+            name="Friends Game",
+            owner=self.user,
+            board=self.board,
+            mode=GameMode.FRIENDS,
+            status=GameStatus.LOBBY
+        )
+        
+        self.solo_game = Game.objects.create(
+            name="Solo Game",
+            owner=self.user,
+            board=self.board,
+            mode=GameMode.SOLO,
+            status=GameStatus.LOBBY
+        )
+        
+        self.active_game = Game.objects.create(
+            name="Active Online Game",
+            owner=self.user,
+            board=self.board,
+            mode=GameMode.ONLINE,
+            status=GameStatus.ACTIVE
+        )
+    
+    def test_lobby_shows_only_online_lobby_games(self):
+        """Test that lobby view only shows ONLINE games in LOBBY status"""
+        response = self.client.get('/game/')
+        self.assertEqual(response.status_code, 200)
+        
+        # Check that only online lobby game appears
+        games = response.context['games']
+        self.assertEqual(games.count(), 1)
+        self.assertEqual(games[0].name, "Online Game")
+    
+    def test_lobby_hides_friends_games(self):
+        """Test that FRIENDS games don't appear in public lobby"""
+        response = self.client.get('/game/')
+        content = response.content.decode('utf-8')
+        
+        # Online game should be visible
+        self.assertIn("Online Game", content)
+        
+        # Friends game should NOT be visible
+        self.assertNotIn("Friends Game", content)
+    
+    def test_join_button_appears_for_authenticated_user(self):
+        """Test that Join Game button appears for logged-in users"""
+        self.client.login(username='testuser', password='pass123')
+        response = self.client.get('/game/')
+        content = response.content.decode('utf-8')
+        
+        # Join Game button should appear
+        self.assertIn("Join Game", content)
+
+
+class JoinGameViewTest(TestCase):
+    """Test join game functionality"""
+    
+    def setUp(self):
+        from django.test import Client
+        
+        self.client = Client()
+        self.user1 = User.objects.create_user(username='user1', password='pass123')
+        self.user2 = User.objects.create_user(username='user2', password='pass123')
+        
+        # Create board
+        self.board = Board.objects.create(name="Test Board", size=10)
+        self.board.initialize_positions()
+        
+        # Create game
+        self.game = Game.objects.create(
+            name="Test Game",
+            owner=self.user1,
+            board=self.board,
+            status=GameStatus.LOBBY
+        )
+        
+        # Add owner to game
+        player1 = Player.objects.create(user=self.user1, display_name='User1')
+        LobbyPlayer.objects.create(game=self.game, player=player1, seat_index=0, is_owner=True)
+    
+    def test_join_game_success(self):
+        """Test successful game join"""
+        self.client.login(username='user2', password='pass123')
+        
+        # Count players before join
+        initial_count = self.game.get_active_players_count()
+        
+        # Join game
+        response = self.client.get(f'/game/{self.game.id}/join/', follow=True)
+        
+        # Should redirect to game detail
+        self.assertEqual(response.status_code, 200)
+        
+        # Check player was added
+        self.game.refresh_from_db()
+        self.assertEqual(self.game.get_active_players_count(), initial_count + 1)
+    
+    def test_join_game_requires_login(self):
+        """Test that joining requires authentication"""
+        response = self.client.get(f'/game/{self.game.id}/join/')
+        
+        # Should redirect to login
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/users/login/', response.url)
