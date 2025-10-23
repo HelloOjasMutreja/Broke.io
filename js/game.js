@@ -1,4 +1,6 @@
 // Game State Management
+// Note: For standalone game mode (non-Django), we use this simple state
+// For Django-integrated games, use gamestate.js GameStateManager instead
 const gameState = {
     players: [],
     currentPlayerIndex: 0,
@@ -10,6 +12,61 @@ const gameState = {
     experience: 0,
     theme: 'classic'
 };
+
+// Game Rules and Validation
+const GAME_RULES = {
+    MIN_PLAYERS: 2,
+    MAX_PLAYERS: 8,
+    STARTING_MONEY: 1500,
+    GO_BONUS: 200,
+    MAX_POSITION: 39, // 0-39 for 40 positions
+    INCOME_TAX: 200,
+    LUXURY_TAX: 100,
+    JAIL_POSITION: 10,
+    GO_TO_JAIL_POSITION: 30,
+    MIN_BUY_AMOUNT: 0
+};
+
+/**
+ * Validate if player can afford a purchase
+ * @param {Player} player - Player object
+ * @param {number} amount - Amount to check
+ * @returns {boolean} - True if player can afford
+ */
+function canAfford(player, amount) {
+    return player && player.money >= amount;
+}
+
+/**
+ * Validate if property can be purchased
+ * @param {Property} property - Property object
+ * @returns {Object} - {valid: boolean, reason: string}
+ */
+function canPurchaseProperty(property) {
+    if (!property) {
+        return { valid: false, reason: 'Property not found' };
+    }
+    if (property.owner) {
+        return { valid: false, reason: 'Property is already owned' };
+    }
+    return { valid: true, reason: null };
+}
+
+/**
+ * Validate dice roll
+ * @param {number} dice1 - First die value
+ * @param {number} dice2 - Second die value
+ * @returns {Object} - {valid: boolean, reason: string}
+ */
+function validateDiceRoll(dice1, dice2) {
+    if (dice1 < 1 || dice1 > 6 || dice2 < 1 || dice2 > 6) {
+        return { valid: false, reason: 'Invalid dice values' };
+    }
+    if (!Number.isInteger(dice1) || !Number.isInteger(dice2)) {
+        return { valid: false, reason: 'Dice values must be integers' };
+    }
+    return { valid: true, reason: null };
+}
 
 // Player Class
 class Player {
@@ -48,14 +105,26 @@ class Player {
     }
 
     buyProperty(property) {
-        if (this.money >= property.price) {
-            this.removeMoney(property.price);
-            this.properties.push(property);
-            property.owner = this;
-            addChatMessage(`${this.name} bought ${property.name} for $${property.price}!`, 'game');
-            updatePropertiesDisplay();
-            addExperience(10);
+        // Validate purchase
+        const purchaseCheck = canPurchaseProperty(property);
+        if (!purchaseCheck.valid) {
+            addChatMessage(`Cannot buy property: ${purchaseCheck.reason}`, 'system');
+            return false;
         }
+        
+        if (!canAfford(this, property.price)) {
+            addChatMessage(`${this.name} cannot afford ${property.name}!`, 'system');
+            return false;
+        }
+        
+        // Execute purchase
+        this.removeMoney(property.price);
+        this.properties.push(property);
+        property.owner = this;
+        addChatMessage(`${this.name} bought ${property.name} for $${property.price}!`, 'game');
+        updatePropertiesDisplay();
+        addExperience(10);
+        return true;
     }
 }
 
@@ -183,6 +252,14 @@ function rollDice() {
 
     const dice1 = Math.floor(Math.random() * 6) + 1;
     const dice2 = Math.floor(Math.random() * 6) + 1;
+    
+    // Validate dice roll
+    const validation = validateDiceRoll(dice1, dice2);
+    if (!validation.valid) {
+        console.error('Invalid dice roll:', validation.reason);
+        return;
+    }
+    
     const total = dice1 + dice2;
 
     // Animate dice
@@ -290,11 +367,14 @@ function buyProperty() {
     const property = gameState.properties.find(p => p.position === position);
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     
-    if (property && !property.owner && currentPlayer.money >= property.price) {
-        currentPlayer.buyProperty(property);
+    if (!property) {
+        addChatMessage("Property not found!", 'system');
+        return;
+    }
+    
+    // Use the new validation from Player class
+    if (currentPlayer.buyProperty(property)) {
         modal.style.display = 'none';
-    } else if (currentPlayer.money < property.price) {
-        addChatMessage("Not enough money to buy this property!", 'system');
     }
 }
 
@@ -373,6 +453,20 @@ function nextTurn() {
 
 // Change Game Mode
 function changeGameMode(mode) {
+    // Validate player count for mode
+    if (mode === 'solo' && gameState.players.length < GAME_RULES.MIN_PLAYERS) {
+        // Add AI players for solo mode
+        while (gameState.players.length < GAME_RULES.MIN_PLAYERS) {
+            const botNumber = gameState.players.length;
+            gameState.players.push(new Player(`AI Bot ${botNumber}`, '🚢', false));
+        }
+    }
+    
+    if (gameState.players.length > GAME_RULES.MAX_PLAYERS) {
+        addChatMessage(`Cannot have more than ${GAME_RULES.MAX_PLAYERS} players!`, 'system');
+        return;
+    }
+    
     gameState.gameMode = mode;
     addChatMessage(`Game mode changed to ${mode}`, 'system');
     
@@ -381,14 +475,7 @@ function changeGameMode(mode) {
         btn.style.opacity = btn.dataset.mode === mode ? '1' : '0.6';
     });
     
-    if (mode === 'solo') {
-        // Add AI players for solo mode
-        if (gameState.players.length === 1) {
-            gameState.players.push(new Player('AI Bot 1', '🚢', false));
-            gameState.players.push(new Player('AI Bot 2', '🎩', false));
-            updatePlayerDisplay();
-        }
-    }
+    updatePlayerDisplay();
 }
 
 // Change Theme
