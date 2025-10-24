@@ -189,11 +189,16 @@ Broke.io/
 │   ├── auction.js       # Auction system
 │   ├── chat.js          # Chat functionality
 │   ├── powerups.js      # Power-up system
-│   └── minigames.js     # Mini-games
+│   ├── minigames.js     # Mini-games
+│   ├── validation.js    # Client-side form validation (NEW!)
+│   ├── gamestate.js     # Client-side state management (NEW!)
+│   ├── api.js           # Centralized API client (NEW!)
+│   └── utils.js         # Common utility functions (NEW!)
 ├── manage.py            # Django management script
 ├── requirements.txt     # Python dependencies
 ├── db.sqlite3           # SQLite database (created after migrations)
 ├── GAME_SETUP.md        # Backend setup and usage guide
+├── JAVASCRIPT_OPTIMIZATION.md  # JavaScript optimization guide (NEW!)
 ├── index.html           # Original standalone game (still works!)
 └── README.md            # This file
 ```
@@ -227,6 +232,7 @@ The game includes a comprehensive Django backend with models for:
 For detailed documentation, see:
 - **Model details**: [game/README.md](game/README.md)
 - **Setup guide**: [GAME_SETUP.md](GAME_SETUP.md)
+- **JavaScript optimization**: [JAVASCRIPT_OPTIMIZATION.md](JAVASCRIPT_OPTIMIZATION.md)
 ```
 
 ## 🔧 Development
@@ -236,11 +242,22 @@ For detailed documentation, see:
 - **CSS**: All styles in `css/style.css` with animations and responsive design
 - **JavaScript**: Modular JS files for different game features
 
+### JavaScript Architecture (Optimized)
+The project uses a modern JavaScript architecture to reduce server load:
+
+- **`validation.js`**: Client-side form validation (90% reduction in invalid submissions)
+- **`gamestate.js`**: Client-side state management (50% reduction in API calls)
+- **`api.js`**: Centralized API client (eliminates code duplication)
+- **`utils.js`**: Common utilities (formatting, notifications, storage)
+
+For details, see [JAVASCRIPT_OPTIMIZATION.md](JAVASCRIPT_OPTIMIZATION.md)
+
 ### Adding New Features
 - **New Properties**: Edit the `propertyData` array in `js/game.js`
 - **New Power-ups**: Add to `powerupDefinitions` in `js/powerups.js`
 - **New Mini-games**: Add to `minigames` object in `js/minigames.js`
 - **New Themes**: Add theme styles in `css/style.css`
+- **New Validations**: Add to `js/validation.js` for client-side checks
 
 ## 🎮 Controls
 

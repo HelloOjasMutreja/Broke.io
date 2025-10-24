@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ game.name }} - Broke.io</title>
     <link rel="stylesheet" href="{% static 'style.css' %}">
+    <script src="{% static 'js/api.js' %}"></script>
+    <script src="{% static 'js/gamestate.js' %}"></script>
+    <script src="{% static 'js/utils.js' %}"></script>
     <style>
         body {
             margin: 0;
@@ -538,19 +541,60 @@
         const CURRENT_PLAYER_ID = {{ current_player.id|default:"null" }};
         const CSRF_TOKEN = '{{ csrf_token }}';
         
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
+        // Initialize API client and game state manager
+        let gameState = null;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize API
+            api.initialize(CSRF_TOKEN);
+            
+            // Initialize game state manager
+            gameState = new GameStateManager(GAME_ID);
+            
+            // Set initial state from server
+            gameState.initialize({
+                game: {{ game|safe }},
+                players: {{ players|safe }},
+                currentTurn: {{ current_turn|safe }}
+            });
+            
+            // Register update callbacks
+            gameState.onUpdate(function(state) {
+                console.log('Game state updated:', state);
+                updateUI(state);
+            });
+            
+            // Start polling if game is active
+            {% if game.status == 'ACTIVE' %}
+                gameState.startPolling(5000);
+            {% endif %}
+        });
+        
+        function updateUI(state) {
+            // Update players
+            if (state.players) {
+                state.players.forEach(player => {
+                    const playerDiv = document.querySelector(`[data-player-id="${player.id}"]`);
+                    if (playerDiv) {
+                        const moneySpan = playerDiv.querySelector('.player-money');
+                        const positionSpan = playerDiv.querySelector('.player-position');
+                        if (moneySpan) moneySpan.textContent = player.money;
+                        if (positionSpan) positionSpan.textContent = player.position;
+                    }
+                });
+            }
+            
+            // Update turn info
+            if (state.currentTurn) {
+                const currentPlayerName = document.getElementById('current-player-name');
+                if (currentPlayerName) {
+                    if (state.currentTurn.player_id === CURRENT_PLAYER_ID) {
+                        currentPlayerName.textContent = 'Your Turn!';
+                    } else {
+                        currentPlayerName.textContent = state.currentTurn.player_name + "'s Turn";
                     }
                 }
             }
-            return cookieValue;
         }
         
         function showMessage(message, type = 'info') {
@@ -579,15 +623,7 @@
             btn.disabled = true;
             
             try {
-                const response = await fetch(`/game/${GAME_ID}/toggle-ready/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken'),
-                        'Content-Type': 'application/json',
-                    }
-                });
-                
-                const data = await response.json();
+                const data = await api.toggleReady(GAME_ID);
                 if (data.success) {
                     btn.textContent = data.is_ready ? '✅ Ready' : '⏳ Not Ready - Click to Ready Up';
                     btn.className = data.is_ready ? 'control-btn success' : 'control-btn primary';
@@ -615,15 +651,7 @@
         
         async function startGame() {
             try {
-                const response = await fetch(`/game/${GAME_ID}/start/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken'),
-                        'Content-Type': 'application/json',
-                    }
-                });
-                
-                const data = await response.json();
+                const data = await api.startGame(GAME_ID);
                 if (data.success) {
                     showMessage(data.message, 'success');
                     setTimeout(() => location.reload(), 1000);
@@ -645,15 +673,7 @@
             dice2.classList.add('rolling');
             
             try {
-                const response = await fetch(`/game/${GAME_ID}/roll-dice/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken'),
-                        'Content-Type': 'application/json',
-                    }
-                });
-                
-                const data = await response.json();
+                const data = await api.rollDice(GAME_ID);
                 
                 if (data.success) {
                     // Show dice results
@@ -699,15 +719,7 @@
             btn.disabled = true;
             
             try {
-                const response = await fetch(`/game/${GAME_ID}/buy-property/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken'),
-                        'Content-Type': 'application/json',
-                    }
-                });
-                
-                const data = await response.json();
+                const data = await api.buyProperty(GAME_ID);
                 
                 if (data.success) {
                     showMessage(`Bought ${data.tile_name} for $${data.price}!`, 'success');
@@ -731,15 +743,7 @@
             btn.disabled = true;
             
             try {
-                const response = await fetch(`/game/${GAME_ID}/end-turn/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken'),
-                        'Content-Type': 'application/json',
-                    }
-                });
-                
-                const data = await response.json();
+                const data = await api.endTurn(GAME_ID);
                 
                 if (data.success) {
                     showMessage(`Turn ended. ${data.next_player_name}'s turn now.`, 'success');
@@ -757,56 +761,12 @@
             }
         }
         
-        // Poll for game state updates every 5 seconds
-        {% if game.status == 'active' %}
-        setInterval(async () => {
-            try {
-                const response = await fetch(`/game/${GAME_ID}/state/`);
-                const data = await response.json();
-                
-                // Update round and turn numbers
-                if (data.current_turn) {
-                    document.getElementById('round-number').textContent = data.current_turn.round_number;
-                    document.getElementById('turn-number').textContent = data.current_turn.turn_number;
-                    
-                    // Update current player display
-                    const currentPlayerName = document.getElementById('current-player-name');
-                    if (data.current_turn.player_id === CURRENT_PLAYER_ID) {
-                        currentPlayerName.textContent = 'Your Turn!';
-                    } else {
-                        currentPlayerName.textContent = data.current_turn.player_name + "'s Turn";
-                    }
-                    
-                    // Update phase
-                    document.getElementById('current-phase').textContent = data.current_turn.phase;
-                    
-                    // Update button states
-                    const isMyTurn = data.current_turn.player_id === CURRENT_PLAYER_ID;
-                    document.getElementById('roll-dice-btn').disabled = !isMyTurn || data.current_turn.phase !== 'roll';
-                    document.getElementById('buy-property-btn').disabled = !isMyTurn || data.current_turn.phase !== 'action';
-                    document.getElementById('end-turn-btn').disabled = !isMyTurn;
-                }
-                
-                // Update players
-                data.players.forEach(player => {
-                    const playerDiv = document.querySelector(`[data-player-id="${player.id}"]`);
-                    if (playerDiv) {
-                        playerDiv.querySelector('.player-money').textContent = player.money;
-                        playerDiv.querySelector('.player-position').textContent = player.position;
-                        
-                        // Update current turn highlight
-                        if (data.current_turn && data.current_turn.player_id === player.id) {
-                            playerDiv.classList.add('current-turn');
-                        } else {
-                            playerDiv.classList.remove('current-turn');
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error('Error fetching game state:', error);
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (gameState) {
+                gameState.stopPolling();
             }
-        }, 5000);
-        {% endif %}
+        });
     </script>
 </body>
 </html>

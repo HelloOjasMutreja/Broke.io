@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Broke.io - Validation Demo</title>
+    <script src="../js/validation.js"></script>
+    <script src="../js/utils.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .demo-container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        h1 { color: #2c3e50; margin-top: 0; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #2c3e50; }
+        input, select { width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 5px; font-size: 1em; box-sizing: border-box; }
+        button { background: #2ecc71; color: white; border: none; padding: 15px 30px; border-radius: 5px; font-size: 1.1em; cursor: pointer; width: 100%; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>🎲 Client-Side Validation Demo</h1>
+        <div id="validation-errors" style="display: none;"></div>
+        <form id="demo-form">
+            <div class="form-group">
+                <label for="game_name">Game Name</label>
+                <input type="text" id="game_name" name="game_name" placeholder="My Awesome Game">
+            </div>
+            <button type="submit">Validate & Submit</button>
+        </form>
+    </div>
+</body>
+</html>

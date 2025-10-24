@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Game Lobby - Broke.io</title>
     <link rel="stylesheet" href="{% static 'style.css' %}">
+    <script src="{% static 'js/validation.js' %}"></script>
+    <script src="{% static 'js/utils.js' %}"></script>
     <style>
         .lobby-container {
             max-width: 1200px;
@@ -276,11 +278,13 @@
             <div class="lobby-section">
                 <h2>➕ Create New Game</h2>
                 {% if user.is_authenticated %}
-                    <form method="POST" action="{% url 'game:create_game' %}" class="create-game-form">
+                    <div id="validation-errors" style="display: none;"></div>
+                    <form method="POST" action="{% url 'game:create_game' %}" class="create-game-form" id="create-game-form">
                         {% csrf_token %}
                         <div class="form-group">
                             <label for="game_name">Game Name</label>
-                            <input type="text" id="game_name" name="game_name" required placeholder="My Awesome Game">
+                            <input type="text" id="game_name" name="game_name" required placeholder="My Awesome Game" maxlength="140">
+                            <small id="game_name_feedback" style="display: none; margin-top: 5px;"></small>
                         </div>
                         
                         <div class="form-group">
@@ -290,23 +294,26 @@
                                     <option value="{{ board.id }}">{{ board.name }} ({{ board.size }}x{{ board.size }})</option>
                                 {% endfor %}
                             </select>
+                            <small id="board_id_feedback" style="display: none; margin-top: 5px;"></small>
                         </div>
                         
                         <div class="form-group">
                             <label for="game_mode">Game Mode</label>
                             <select id="game_mode" name="game_mode" required>
-                                <option value="solo">Solo</option>
-                                <option value="friends" selected>Friends</option>
-                                <option value="online">Online</option>
+                                <option value="SOLO">Solo</option>
+                                <option value="FRIENDS" selected>Friends</option>
+                                <option value="ONLINE">Online</option>
                             </select>
+                            <small id="game_mode_feedback" style="display: none; margin-top: 5px;"></small>
                         </div>
                         
                         <div class="form-group">
                             <label for="max_players">Max Players (2-8)</label>
                             <input type="number" id="max_players" name="max_players" min="2" max="8" value="4" required>
+                            <small id="max_players_feedback" style="display: none; margin-top: 5px;"></small>
                         </div>
                         
-                        <button type="submit" class="create-btn">Create Game</button>
+                        <button type="submit" class="create-btn" id="submit-btn">Create Game</button>
                     </form>
                 {% else %}
                     <div class="empty-state">
@@ -316,5 +323,75 @@
             </div>
         </div>
     </div>
+    
+    <script>
+        // Client-side form validation
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('create-game-form');
+            const validationErrorsDiv = document.getElementById('validation-errors');
+            
+            if (!form) return;
+            
+            // Add real-time validation
+            const gameNameInput = document.getElementById('game_name');
+            const maxPlayersInput = document.getElementById('max_players');
+            
+            if (gameNameInput) {
+                addRealtimeValidation(
+                    gameNameInput,
+                    validateGameName,
+                    document.getElementById('game_name_feedback')
+                );
+            }
+            
+            if (maxPlayersInput) {
+                addRealtimeValidation(
+                    maxPlayersInput,
+                    validateMaxPlayers,
+                    document.getElementById('max_players_feedback')
+                );
+            }
+            
+            // Validate form on submit
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Clear previous errors
+                clearValidationErrors(validationErrorsDiv);
+                
+                // Get form data
+                const formData = {
+                    game_name: document.getElementById('game_name').value,
+                    board_id: document.getElementById('board_id').value,
+                    game_mode: document.getElementById('game_mode').value,
+                    max_players: document.getElementById('max_players').value
+                };
+                
+                // Validate
+                const validation = validateCreateGameForm(formData);
+                
+                if (!validation.valid) {
+                    // Show errors
+                    showValidationErrors(validation.errors, validationErrorsDiv);
+                    
+                    // Scroll to errors
+                    validationErrorsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    return false;
+                }
+                
+                // If validation passes, submit the form
+                form.submit();
+            });
+            
+            // Auto-refresh game list every 10 seconds
+            setInterval(function() {
+                // Only refresh if user is on the page
+                if (!document.hidden) {
+                    location.reload();
+                }
+            }, 10000);
+        });
+    </script>
 </body>
 </html>
