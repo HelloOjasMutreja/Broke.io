@@ -220,7 +220,10 @@
                 <a href="{% url 'home' %}">🏠 Home</a>
                 {% if user.is_authenticated %}
                     <a href="{% url 'profile' %}">👤 Profile</a>
-                    <a href="{% url 'logout' %}">🚪 Logout</a>
+                    <form method="post" action="{% url 'logout' %}" style="display: inline; margin-left: 10px;">
+                        {% csrf_token %}
+                        <button type="submit" style="background: none; border: none; color: white; cursor: pointer; font-size: 16px; padding: 0;">🚪 Logout</button>
+                    </form>
                 {% else %}
                     <a href="{% url 'login' %}">🔐 Login</a>
                     <a href="{% url 'signup' %}">📝 Sign Up</a>
