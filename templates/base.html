@@ -158,6 +158,10 @@
         .nav a:hover {
             background: rgba(255, 255, 255, 0.2);
         }
+        
+        .nav button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -165,7 +169,10 @@
     <div class="nav">
         <a href="/">🎲 Play Game</a>
         <a href="{% url 'profile' %}">👤 Profile</a>
-        <a href="{% url 'logout' %}">🚪 Logout</a>
+        <form method="post" action="{% url 'logout' %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" style="background: none; border: none; color: white; cursor: pointer; font-size: 16px; margin: 0 10px; padding: 8px 16px; border-radius: 5px; transition: background 0.3s;">🚪 Logout</button>
+        </form>
     </div>
     {% endif %}
     

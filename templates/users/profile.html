@@ -26,6 +26,9 @@
 </div>
 
 <div class="links" style="margin-top: 20px;">
-    <p><a href="{% url 'logout' %}">Logout</a></p>
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn" style="width: auto; padding: 10px 30px;">Logout</button>
+    </form>
 </div>
 {% endblock %}
